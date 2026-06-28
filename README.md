@@ -2,6 +2,10 @@
 
 Windows 桌面版表格处理工具。
 
+## License
+
+MIT License. Free and open source.
+
 功能：
 
 - 自动识别“商品重量”列
