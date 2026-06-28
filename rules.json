@@ -1,0 +1,102 @@
+{
+  "delete_rules": [
+    {
+      "name": "商品名和成本价都空白",
+      "conditions": [
+        { "column": "商品名", "operator": "blank" },
+        { "column": "成本价", "operator": "blank" }
+      ]
+    },
+    {
+      "name": "可用数为0或空白且成本价空白",
+      "conditions": [
+        { "column": "可用数", "operator": "zero_or_blank" },
+        { "column": "成本价", "operator": "blank" }
+      ]
+    },
+    {
+      "name": "商品名含下架且库存为0或空白",
+      "conditions": [
+        { "column": "商品名", "operator": "contains", "value": "下架" },
+        { "column": "库存", "operator": "zero_or_blank" }
+      ]
+    },
+    {
+      "name": "商品名含下架且可用数小于100",
+      "conditions": [
+        { "column": "商品名", "operator": "contains", "value": "下架" },
+        { "column": "可用数", "operator": "lt", "value": 100 }
+      ]
+    },
+    {
+      "name": "商品名含zxp且可用数小于100",
+      "conditions": [
+        { "column": "商品名", "operator": "contains_ci", "value": "zxp" },
+        { "column": "可用数", "operator": "lt", "value": 100 }
+      ]
+    },
+    {
+      "name": "商品名含微瑕品",
+      "conditions": [
+        { "column": "商品名", "operator": "contains", "value": "微瑕品" }
+      ]
+    },
+    {
+      "name": "可用数小于10且商品重量空白",
+      "conditions": [
+        { "column": "可用数", "operator": "lt", "value": 10 },
+        { "column": "商品重量", "operator": "blank" }
+      ]
+    },
+    {
+      "name": "可用数为0且供应商没有英文字母",
+      "conditions": [
+        { "column": "可用数", "operator": "eq", "value": 0 },
+        { "column": "供应商", "operator": "no_english_letter" }
+      ]
+    },
+    {
+      "name": "商品标签空白且可用数为0",
+      "conditions": [
+        { "column": "商品标签", "operator": "blank" },
+        { "column": "可用数", "operator": "eq", "value": 0 }
+      ]
+    },
+    {
+      "name": "商品标签含家具或赠品",
+      "any": [
+        { "column": "商品标签", "operator": "contains", "value": "家具" },
+        { "column": "商品标签", "operator": "contains", "value": "赠品" }
+      ]
+    },
+    {
+      "name": "商品标签含待清理且可用数小于30",
+      "conditions": [
+        { "column": "商品标签", "operator": "contains", "value": "待清理" },
+        { "column": "可用数", "operator": "lt", "value": 30 }
+      ]
+    },
+    {
+      "name": "商品标签含分销商且可用数小于100",
+      "conditions": [
+        { "column": "商品标签", "operator": "contains", "value": "分销商" },
+        { "column": "可用数", "operator": "lt", "value": 100 }
+      ]
+    },
+    {
+      "name": "商品标签4位数字小于2601且可用数小于20且15天销量小于15",
+      "conditions": [
+        { "column": "商品标签", "operator": "four_digit_lt", "value": 2601 },
+        { "column": "可用数", "operator": "lt", "value": 20 },
+        { "column": "15天销量", "operator": "lt", "value": 15 }
+      ]
+    },
+    {
+      "name": "供应商和成本价都空白",
+      "conditions": [
+        { "column": "供应商", "operator": "blank" },
+        { "column": "成本价", "operator": "blank" }
+      ]
+    }
+  ]
+}
