@@ -513,7 +513,7 @@ def process_xlsx(
 
             if header is None:
                 target_sheet.append([])
-                summary.append((source_sheet.title, 0, 0))
+                summary.append((source_sheet.title, 0, 0, 0, 0))
                 continue
 
             headers = list(header)
@@ -687,10 +687,142 @@ def process_csv(
     return [("CSV", kept_rows, deleted_rows, matched_prices, saved_prices)]
 
 
+def append_cached_prices_xlsx(input_path, output_path, progress_callback=None, price_cache=None):
+    source = load_workbook(input_path, read_only=True, data_only=True)
+    target = Workbook(write_only=True)
+    price_cache = price_cache if price_cache is not None else {}
+
+    if target.worksheets:
+        target.remove(target.worksheets[0])
+
+    summary = []
+
+    try:
+        total_rows = estimate_xlsx_total_rows(source)
+        processed_rows = 0
+
+        for sheet_index, source_sheet in enumerate(source.worksheets, start=1):
+            target_sheet = target.create_sheet(title=source_sheet.title)
+            rows = source_sheet.iter_rows(values_only=True)
+            header = next(rows, None)
+
+            if header is None:
+                target_sheet.append([PRICE_COLUMN_NAME])
+                summary.append((source_sheet.title, 0, 0))
+                continue
+
+            headers = list(header)
+            header_map = build_header_map(headers)
+
+            if find_header_index(headers, PRODUCT_CODE_COLUMN_NAME) == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{PRODUCT_CODE_COLUMN_NAME}”列。")
+
+            target_sheet.append(headers + [PRICE_COLUMN_NAME])
+
+            matched_rows = 0
+            unmatched_rows = 0
+
+            for row_number, row in enumerate(rows, start=2):
+                row_values = list(row)
+                processed_rows += 1
+                product_code = normalize_match_key(get_row_column_value(row_values, header_map, PRODUCT_CODE_COLUMN_NAME))
+                price = price_cache.get(product_code) if product_code else None
+
+                if price is None:
+                    unmatched_rows += 1
+                else:
+                    matched_rows += 1
+
+                target_sheet.append(row_values + [price])
+
+                if row_number % 500 == 0:
+                    report_progress(
+                        progress_callback,
+                        f"正在匹配售价：{source_sheet.title} 第 {row_number} 行",
+                        processed_rows,
+                        total_rows,
+                    )
+
+            summary.append((source_sheet.title, matched_rows, unmatched_rows))
+            report_progress(
+                progress_callback,
+                f"已匹配 {sheet_index}/{len(source.worksheets)} 个工作表",
+                processed_rows,
+                total_rows,
+            )
+
+        report_progress(progress_callback, "正在保存匹配结果...", total_rows, total_rows)
+        target.save(output_path)
+    finally:
+        source.close()
+        target.close()
+
+    return summary
+
+
+def append_cached_prices_csv(input_path, output_path, progress_callback=None, price_cache=None):
+    price_cache = price_cache if price_cache is not None else {}
+
+    with open(input_path, "r", newline="", encoding="utf-8-sig") as count_file:
+        total_rows = max(sum(1 for _ in count_file) - 1, 0)
+
+    with open(input_path, "r", newline="", encoding="utf-8-sig") as source_file:
+        sample = source_file.read(4096)
+        source_file.seek(0)
+        dialect = csv.Sniffer().sniff(sample) if sample.strip() else csv.excel
+        reader = csv.reader(source_file, dialect)
+
+        header = next(reader, None)
+        if header is None:
+            raise ValueError("CSV 文件为空。")
+
+        header_map = build_header_map(header)
+        if find_header_index(header, PRODUCT_CODE_COLUMN_NAME) == -1:
+            raise ValueError(f"没有找到“{PRODUCT_CODE_COLUMN_NAME}”列。")
+
+        with open(output_path, "w", newline="", encoding="utf-8-sig") as target_file:
+            writer = csv.writer(target_file)
+            writer.writerow(list(header) + [PRICE_COLUMN_NAME])
+
+            matched_rows = 0
+            unmatched_rows = 0
+            processed_rows = 0
+
+            for row_number, row in enumerate(reader, start=2):
+                processed_rows += 1
+                product_code = normalize_match_key(get_row_column_value(row, header_map, PRODUCT_CODE_COLUMN_NAME))
+                price = price_cache.get(product_code) if product_code else None
+
+                if price is None:
+                    unmatched_rows += 1
+                else:
+                    matched_rows += 1
+
+                writer.writerow(list(row) + [price])
+
+                if row_number % 500 == 0:
+                    report_progress(progress_callback, f"正在匹配 CSV 第 {row_number} 行", processed_rows, total_rows)
+
+    report_progress(progress_callback, "CSV 售价匹配完成。", total_rows, total_rows)
+
+    return [("CSV", matched_rows, unmatched_rows)]
+
+
 def default_output_path(input_path):
     folder = os.path.dirname(input_path)
     base, extension = os.path.splitext(os.path.basename(input_path))
     suffix = "_新增快递费列"
+
+    if extension.lower() == ".csv":
+        return os.path.join(folder, f"{base}{suffix}.csv")
+
+    return os.path.join(folder, f"{base}{suffix}.xlsx")
+
+
+def default_price_match_output_path(input_path):
+    folder = os.path.dirname(input_path)
+    base, extension = os.path.splitext(os.path.basename(input_path))
+    suffix = "_匹配售价"
 
     if extension.lower() == ".csv":
         return os.path.join(folder, f"{base}{suffix}.csv")
@@ -705,10 +837,12 @@ class App(tk.Tk):
         icon_path = resource_path("app.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
-        self.geometry("780x720")
-        self.minsize(700, 640)
+        self.geometry("780x840")
+        self.minsize(720, 760)
         self.input_path = tk.StringVar()
         self.output_path = tk.StringVar()
+        self.match_input_path = tk.StringVar()
+        self.match_output_path = tk.StringVar()
         self.rules_path = tk.StringVar(value=default_rules_path())
         self.status = tk.StringVar(value="请选择要处理的 Excel 或 CSV 文件。")
         self.progress = tk.IntVar(value=0)
@@ -772,11 +906,26 @@ class App(tk.Tk):
         self.run_button = ttk.Button(frame, text="开始处理", command=self.start_processing)
         self.run_button.grid(row=7, column=0, columnspan=3, sticky="ew", ipady=8)
 
+        cache_frame = ttk.LabelFrame(frame, text="从价格库匹配售价", padding=10)
+        cache_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(12, 12))
+        cache_frame.columnconfigure(1, weight=1)
+        ttk.Label(cache_frame, text="导入新表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(cache_frame, textvariable=self.match_input_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
+        ttk.Button(cache_frame, text="选择", command=self.choose_match_input).grid(row=0, column=2, sticky="ew", pady=3)
+        ttk.Label(cache_frame, text="导出新表格").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(cache_frame, textvariable=self.match_output_path).grid(row=1, column=1, sticky="ew", padx=(0, 8), pady=3)
+        ttk.Button(cache_frame, text="另存为", command=self.choose_match_output).grid(row=1, column=2, sticky="ew", pady=3)
+        ttk.Label(cache_frame, text="固定查找“商品编码”，在新表格末尾新增“售价”列。", foreground="#435064").grid(
+            row=2, column=0, columnspan=3, sticky="w", pady=(6, 8)
+        )
+        self.match_button = ttk.Button(cache_frame, text="匹配售价并导出", command=self.start_price_match)
+        self.match_button.grid(row=3, column=0, columnspan=3, sticky="ew", ipady=6)
+
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
-        self.progress_bar.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        self.progress_bar.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(14, 0))
 
         ttk.Label(frame, textvariable=self.status, foreground="#1f7a8c", wraplength=590).grid(
-            row=9, column=0, columnspan=3, sticky="w", pady=(10, 0)
+            row=10, column=0, columnspan=3, sticky="w", pady=(10, 0)
         )
 
     def choose_input(self):
@@ -816,6 +965,44 @@ class App(tk.Tk):
 
         if path:
             self.output_path.set(path)
+
+    def choose_match_input(self):
+        path = filedialog.askopenfilename(
+            title="选择要匹配售价的表格文件",
+            filetypes=[
+                ("表格文件", "*.xlsx *.xlsm *.csv"),
+                ("Excel 文件", "*.xlsx *.xlsm"),
+                ("CSV 文件", "*.csv"),
+                ("所有文件", "*.*"),
+            ],
+        )
+
+        if not path:
+            return
+
+        self.match_input_path.set(path)
+        self.match_output_path.set(default_price_match_output_path(path))
+
+    def choose_match_output(self):
+        initial = self.match_output_path.get() or default_price_match_output_path(self.match_input_path.get() or "匹配售价.xlsx")
+        extension = os.path.splitext(initial)[1].lower()
+        filetypes = [("Excel 文件", "*.xlsx")]
+        defaultextension = ".xlsx"
+
+        if extension == ".csv":
+            filetypes = [("CSV 文件", "*.csv")]
+            defaultextension = ".csv"
+
+        path = filedialog.asksaveasfilename(
+            title="选择匹配售价导出位置",
+            initialfile=os.path.basename(initial),
+            initialdir=os.path.dirname(initial) or os.getcwd(),
+            defaultextension=defaultextension,
+            filetypes=filetypes,
+        )
+
+        if path:
+            self.match_output_path.set(path)
 
     def choose_rules_file(self):
         path = filedialog.askopenfilename(
@@ -901,7 +1088,7 @@ class App(tk.Tk):
             messagebox.showwarning("规则错误", f"规则或售价保存文件读取失败：{error}")
             return
 
-        self.run_button.config(state="disabled")
+        self._set_buttons_state("disabled")
         self.progress_bar.config(mode="indeterminate")
         self.progress_bar.start(10)
         self.progress.set(0)
@@ -913,6 +1100,54 @@ class App(tk.Tk):
             daemon=True,
         )
         thread.start()
+
+    def start_price_match(self):
+        input_path = self.match_input_path.get().strip()
+        output_path = self.match_output_path.get().strip()
+
+        if not input_path or not os.path.exists(input_path):
+            messagebox.showwarning("缺少文件", "请先选择要匹配售价的新表格文件。")
+            return
+
+        if not output_path:
+            self.match_output_path.set(default_price_match_output_path(input_path))
+            output_path = self.match_output_path.get()
+
+        try:
+            price_cache = load_price_cache()
+        except Exception as error:
+            messagebox.showwarning("读取失败", f"价格库读取失败：{error}")
+            return
+
+        self._set_buttons_state("disabled")
+        self.progress_bar.config(mode="indeterminate")
+        self.progress_bar.start(10)
+        self.progress.set(0)
+        self.status.set("正在从价格库匹配售价，请稍候...")
+
+        thread = threading.Thread(
+            target=self._match_prices_in_thread,
+            args=(input_path, output_path, price_cache),
+            daemon=True,
+        )
+        thread.start()
+
+    def _match_prices_in_thread(self, input_path, output_path, price_cache):
+        try:
+            extension = os.path.splitext(input_path)[1].lower()
+
+            if extension == ".csv":
+                summary = append_cached_prices_csv(input_path, output_path, self._set_progress, price_cache)
+            elif extension in (".xlsx", ".xlsm"):
+                summary = append_cached_prices_xlsx(input_path, output_path, self._set_progress, price_cache)
+            else:
+                raise ValueError("暂不支持该文件格式，请使用 .xlsx、.xlsm 或 .csv。")
+
+            matched = sum(item[1] for item in summary)
+            unmatched = sum(item[2] for item in summary)
+            self.after(0, lambda: self._finish_match_success(output_path, matched, unmatched))
+        except Exception as error:
+            self.after(0, lambda: self._finish_error(str(error)))
 
     def _process_in_thread(self, input_path, output_path, shipping_fees, price_rules, delete_rules, price_match_column, price_cache):
         try:
@@ -970,8 +1205,12 @@ class App(tk.Tk):
 
         self.after(0, update)
 
+    def _set_buttons_state(self, state):
+        self.run_button.config(state=state)
+        self.match_button.config(state=state)
+
     def _finish_success(self, output_path, kept, deleted, matched, saved):
-        self.run_button.config(state="normal")
+        self._set_buttons_state("normal")
         self.progress_bar.stop()
         self.progress_bar.config(mode="determinate")
         self.progress.set(100)
@@ -981,8 +1220,19 @@ class App(tk.Tk):
             f"已导出：\n{output_path}\n\n匹配保存售价：{matched} 行\n新增保存售价：{saved} 行",
         )
 
+    def _finish_match_success(self, output_path, matched, unmatched):
+        self._set_buttons_state("normal")
+        self.progress_bar.stop()
+        self.progress_bar.config(mode="determinate")
+        self.progress.set(100)
+        self.status.set(f"售价匹配完成：匹配 {matched} 行，未匹配 {unmatched} 行。")
+        messagebox.showinfo(
+            "匹配完成",
+            f"已导出：\n{output_path}\n\n匹配售价：{matched} 行\n未匹配：{unmatched} 行",
+        )
+
     def _finish_error(self, message):
-        self.run_button.config(state="normal")
+        self._set_buttons_state("normal")
         self.progress_bar.stop()
         self.progress_bar.config(mode="determinate")
         self.progress.set(0)
