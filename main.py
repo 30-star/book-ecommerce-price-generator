@@ -1147,7 +1147,8 @@ class App(tk.Tk):
             unmatched = sum(item[2] for item in summary)
             self.after(0, lambda: self._finish_match_success(output_path, matched, unmatched))
         except Exception as error:
-            self.after(0, lambda: self._finish_error(str(error)))
+            message = str(error)
+            self.after(0, lambda: self._finish_error(message))
 
     def _process_in_thread(self, input_path, output_path, shipping_fees, price_rules, delete_rules, price_match_column, price_cache):
         try:
@@ -1187,7 +1188,8 @@ class App(tk.Tk):
             saved = sum(item[4] for item in summary)
             self.after(0, lambda: self._finish_success(output_path, kept, deleted, matched, saved))
         except Exception as error:
-            self.after(0, lambda: self._finish_error(str(error)))
+            message = str(error)
+            self.after(0, lambda: self._finish_error(message))
 
     def _set_status(self, text):
         self.after(0, lambda: self.status.set(text))
