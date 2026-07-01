@@ -10,8 +10,8 @@ installer/
 *.xlsm
 *.csv
 *.ods
+price_cache.json
 
 .env
 .venv/
 venv/
-

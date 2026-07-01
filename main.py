@@ -29,6 +29,8 @@ PRODUCT_TAG_COLUMN_NAME = "商品标签"
 SUPPLIER_COLUMN_NAME = "供应商"
 COST_PRICE_COLUMN_NAME = "成本价"
 SALES_15_DAYS_COLUMN_NAME = "15天销量"
+PRICE_CACHE_FILE_NAME = "price_cache.json"
+DEFAULT_PRICE_MATCH_COLUMN_NAME = PRODUCT_COLUMN_NAME
 DEFAULT_PRICE_THRESHOLD = 4.5
 DEFAULT_LOW_PRICE_MARGIN = 0.13
 DEFAULT_HIGH_PRICE_MARGIN = 0.13
@@ -221,6 +223,40 @@ def default_rules_path():
     return os.path.join(app_base_dir(), "rules.json")
 
 
+def default_price_cache_path():
+    data_root = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    data_dir = os.path.join(data_root, "图书电商线上活动价格自动生成器")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, PRICE_CACHE_FILE_NAME)
+
+
+def normalize_match_key(value):
+    return str(value if value is not None else "").strip()
+
+
+def load_price_cache(path=None):
+    cache_path = path or default_price_cache_path()
+
+    if not cache_path or not os.path.exists(cache_path):
+        return {}
+
+    with open(cache_path, "r", encoding="utf-8") as cache_file:
+        data = json.load(cache_file)
+
+    prices = data.get("prices", data if isinstance(data, dict) else None)
+    if not isinstance(prices, dict):
+        raise ValueError("售价保存文件格式错误：需要 prices 对象。")
+
+    return {normalize_match_key(key): value for key, value in prices.items() if normalize_match_key(key)}
+
+
+def save_price_cache(price_cache, path=None):
+    cache_path = path or default_price_cache_path()
+
+    with open(cache_path, "w", encoding="utf-8") as cache_file:
+        json.dump({"prices": price_cache}, cache_file, ensure_ascii=False, indent=2)
+
+
 def load_delete_rules(path=None):
     rules_path = path or default_rules_path()
 
@@ -396,6 +432,22 @@ def calculate_price(cost_price_value, shipping_fee_value, price_rules=None):
     return round((cost_price + shipping_fee) / divisor, 2)
 
 
+def resolve_price(row, header_map, cost_price_index, shipping_fee, price_rules, price_match_column, price_cache):
+    match_key = normalize_match_key(get_row_column_value(row, header_map, price_match_column))
+
+    if match_key and match_key in price_cache:
+        return price_cache[match_key], True, False
+
+    cost_price_value = get_row_value(row, cost_price_index)
+    price = calculate_price(cost_price_value, shipping_fee, price_rules)
+
+    if match_key and price is not None:
+        price_cache[match_key] = price
+        return price, False, True
+
+    return price, False, False
+
+
 def insert_values(row, index, values):
     next_row = list(row)
     while len(next_row) < index:
@@ -437,9 +489,12 @@ def process_xlsx(
     shipping_fees=None,
     price_rules=None,
     delete_rules=None,
+    price_match_column=DEFAULT_PRICE_MATCH_COLUMN_NAME,
+    price_cache=None,
 ):
     source = load_workbook(input_path, read_only=True, data_only=True)
     target = Workbook(write_only=True)
+    price_cache = price_cache if price_cache is not None else {}
 
     if target.worksheets:
         target.remove(target.worksheets[0])
@@ -473,12 +528,16 @@ def process_xlsx(
 
             if weight_index == -1:
                 raise ValueError(f"工作表“{source_sheet.title}”没有找到“{WEIGHT_COLUMN_NAME}”列。")
+            if find_header_index(headers, price_match_column) == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到售价匹配列“{price_match_column}”。")
 
             insert_index = weight_index if insert_side == "before" else weight_index + 1
             target_sheet.append(insert_values(headers, insert_index, [INSERTED_COLUMN_NAME, PRICE_COLUMN_NAME]))
 
             kept_rows = 0
             deleted_rows = 0
+            matched_prices = 0
+            saved_prices = 0
 
             for row_number, row in enumerate(rows, start=2):
                 row_values = list(row)
@@ -497,8 +556,19 @@ def process_xlsx(
 
                 weight_value = get_row_value(row_values, weight_index)
                 shipping_fee = calculate_shipping_fee(weight_value, shipping_fees)
-                cost_price_value = get_row_value(row_values, cost_price_index)
-                price = calculate_price(cost_price_value, shipping_fee, price_rules)
+                price, matched, saved = resolve_price(
+                    row_values,
+                    header_map,
+                    cost_price_index,
+                    shipping_fee,
+                    price_rules,
+                    price_match_column,
+                    price_cache,
+                )
+                if matched:
+                    matched_prices += 1
+                if saved:
+                    saved_prices += 1
                 target_sheet.append(insert_values(row_values, insert_index, [shipping_fee, price]))
                 kept_rows += 1
 
@@ -510,7 +580,7 @@ def process_xlsx(
                         total_rows,
                     )
 
-            summary.append((source_sheet.title, kept_rows, deleted_rows))
+            summary.append((source_sheet.title, kept_rows, deleted_rows, matched_prices, saved_prices))
 
             report_progress(
                 progress_callback,
@@ -536,7 +606,11 @@ def process_csv(
     shipping_fees=None,
     price_rules=None,
     delete_rules=None,
+    price_match_column=DEFAULT_PRICE_MATCH_COLUMN_NAME,
+    price_cache=None,
 ):
+    price_cache = price_cache if price_cache is not None else {}
+
     with open(input_path, "r", newline="", encoding="utf-8-sig") as count_file:
         total_rows = max(sum(1 for _ in count_file) - 1, 0)
 
@@ -562,6 +636,8 @@ def process_csv(
 
         if weight_index == -1:
             raise ValueError(f"没有找到“{WEIGHT_COLUMN_NAME}”列。")
+        if find_header_index(header, price_match_column) == -1:
+            raise ValueError(f"没有找到售价匹配列“{price_match_column}”。")
 
         insert_index = weight_index if insert_side == "before" else weight_index + 1
 
@@ -571,6 +647,8 @@ def process_csv(
 
             kept_rows = 0
             deleted_rows = 0
+            matched_prices = 0
+            saved_prices = 0
             processed_rows = 0
 
             for row_number, row in enumerate(reader, start=2):
@@ -584,8 +662,19 @@ def process_csv(
 
                 weight_value = get_row_value(row, weight_index)
                 shipping_fee = calculate_shipping_fee(weight_value, shipping_fees)
-                cost_price_value = get_row_value(row, cost_price_index)
-                price = calculate_price(cost_price_value, shipping_fee, price_rules)
+                price, matched, saved = resolve_price(
+                    row,
+                    header_map,
+                    cost_price_index,
+                    shipping_fee,
+                    price_rules,
+                    price_match_column,
+                    price_cache,
+                )
+                if matched:
+                    matched_prices += 1
+                if saved:
+                    saved_prices += 1
                 writer.writerow(insert_values(row, insert_index, [shipping_fee, price]))
                 kept_rows += 1
 
@@ -594,7 +683,7 @@ def process_csv(
 
     report_progress(progress_callback, "CSV 处理完成。", total_rows, total_rows)
 
-    return [("CSV", kept_rows, deleted_rows)]
+    return [("CSV", kept_rows, deleted_rows, matched_prices, saved_prices)]
 
 
 def default_output_path(input_path):
@@ -626,6 +715,7 @@ class App(tk.Tk):
         self.price_threshold = tk.StringVar(value=str(DEFAULT_PRICE_THRESHOLD))
         self.low_price_margin = tk.StringVar(value=str(DEFAULT_LOW_PRICE_MARGIN))
         self.high_price_margin = tk.StringVar(value=str(DEFAULT_HIGH_PRICE_MARGIN))
+        self.price_match_column = tk.StringVar(value=DEFAULT_PRICE_MATCH_COLUMN_NAME)
         self._build_ui()
 
     def _build_ui(self):
@@ -648,8 +738,14 @@ class App(tk.Tk):
         rules = "规则：固定识别“商品重量”列，新增“快递费”列；指定空白/零值行会删除。"
         ttk.Label(frame, text=rules, foreground="#435064").grid(row=3, column=0, columnspan=3, sticky="w", pady=(12, 12))
 
+        match_frame = ttk.LabelFrame(frame, text="保存售价匹配规则", padding=10)
+        match_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        match_frame.columnconfigure(1, weight=1)
+        ttk.Label(match_frame, text="售价匹配列名").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(match_frame, textvariable=self.price_match_column).grid(row=0, column=1, sticky="ew", pady=3)
+
         price_frame = ttk.LabelFrame(frame, text="售价规则", padding=10)
-        price_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        price_frame.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         price_frame.columnconfigure(1, weight=1)
         price_frame.columnconfigure(3, weight=1)
         ttk.Label(price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
@@ -660,7 +756,7 @@ class App(tk.Tk):
         ttk.Entry(price_frame, textvariable=self.high_price_margin, width=10).grid(row=1, column=3, sticky="w", pady=3)
 
         fee_frame = ttk.LabelFrame(frame, text="快递费规则（填写返回数字）", padding=10)
-        fee_frame.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        fee_frame.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         fee_frame.columnconfigure(1, weight=1)
         fee_frame.columnconfigure(3, weight=1)
 
@@ -673,13 +769,13 @@ class App(tk.Tk):
             )
 
         self.run_button = ttk.Button(frame, text="开始处理", command=self.start_processing)
-        self.run_button.grid(row=6, column=0, columnspan=3, sticky="ew", ipady=8)
+        self.run_button.grid(row=7, column=0, columnspan=3, sticky="ew", ipady=8)
 
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
-        self.progress_bar.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        self.progress_bar.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(14, 0))
 
         ttk.Label(frame, textvariable=self.status, foreground="#1f7a8c", wraplength=590).grid(
-            row=8, column=0, columnspan=3, sticky="w", pady=(10, 0)
+            row=9, column=0, columnspan=3, sticky="w", pady=(10, 0)
         )
 
     def choose_input(self):
@@ -793,11 +889,15 @@ class App(tk.Tk):
             shipping_fees = self.get_shipping_fees()
             price_rules = self.get_price_rules()
             delete_rules = load_delete_rules(self.rules_path.get().strip())
+            price_match_column = self.price_match_column.get().strip()
+            if not price_match_column:
+                raise ValueError("售价匹配列名不能为空。")
+            price_cache = load_price_cache()
         except ValueError as error:
             messagebox.showwarning("规则错误", str(error))
             return
         except Exception as error:
-            messagebox.showwarning("规则错误", f"删除规则文件读取失败：{error}")
+            messagebox.showwarning("规则错误", f"规则或售价保存文件读取失败：{error}")
             return
 
         self.run_button.config(state="disabled")
@@ -808,25 +908,48 @@ class App(tk.Tk):
 
         thread = threading.Thread(
             target=self._process_in_thread,
-            args=(input_path, output_path, shipping_fees, price_rules, delete_rules),
+            args=(input_path, output_path, shipping_fees, price_rules, delete_rules, price_match_column, price_cache),
             daemon=True,
         )
         thread.start()
 
-    def _process_in_thread(self, input_path, output_path, shipping_fees, price_rules, delete_rules):
+    def _process_in_thread(self, input_path, output_path, shipping_fees, price_rules, delete_rules, price_match_column, price_cache):
         try:
             extension = os.path.splitext(input_path)[1].lower()
 
             if extension == ".csv":
-                summary = process_csv(input_path, output_path, "after", self._set_progress, shipping_fees, price_rules, delete_rules)
+                summary = process_csv(
+                    input_path,
+                    output_path,
+                    "after",
+                    self._set_progress,
+                    shipping_fees,
+                    price_rules,
+                    delete_rules,
+                    price_match_column,
+                    price_cache,
+                )
             elif extension in (".xlsx", ".xlsm"):
-                summary = process_xlsx(input_path, output_path, "after", self._set_progress, shipping_fees, price_rules, delete_rules)
+                summary = process_xlsx(
+                    input_path,
+                    output_path,
+                    "after",
+                    self._set_progress,
+                    shipping_fees,
+                    price_rules,
+                    delete_rules,
+                    price_match_column,
+                    price_cache,
+                )
             else:
                 raise ValueError("暂不支持该文件格式，请使用 .xlsx、.xlsm 或 .csv。")
 
+            save_price_cache(price_cache)
             deleted = sum(item[2] for item in summary)
             kept = sum(item[1] for item in summary)
-            self.after(0, lambda: self._finish_success(output_path, kept, deleted))
+            matched = sum(item[3] for item in summary)
+            saved = sum(item[4] for item in summary)
+            self.after(0, lambda: self._finish_success(output_path, kept, deleted, matched, saved))
         except Exception as error:
             self.after(0, lambda: self._finish_error(str(error)))
 
@@ -846,13 +969,16 @@ class App(tk.Tk):
 
         self.after(0, update)
 
-    def _finish_success(self, output_path, kept, deleted):
+    def _finish_success(self, output_path, kept, deleted, matched, saved):
         self.run_button.config(state="normal")
         self.progress_bar.stop()
         self.progress_bar.config(mode="determinate")
         self.progress.set(100)
-        self.status.set(f"处理完成：保留 {kept} 行，删除 {deleted} 行。")
-        messagebox.showinfo("处理完成", f"已导出：\n{output_path}")
+        self.status.set(f"处理完成：保留 {kept} 行，删除 {deleted} 行，匹配保存售价 {matched} 行，新增保存售价 {saved} 行。")
+        messagebox.showinfo(
+            "处理完成",
+            f"已导出：\n{output_path}\n\n匹配保存售价：{matched} 行\n新增保存售价：{saved} 行",
+        )
 
     def _finish_error(self, message):
         self.run_button.config(state="normal")
