@@ -990,8 +990,8 @@ class App(tk.Tk):
         icon_path = resource_path("app.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
-        self.geometry("780x1020")
-        self.minsize(720, 900)
+        self.geometry("780x780")
+        self.minsize(720, 700)
         self.input_path = tk.StringVar()
         self.output_path = tk.StringVar()
         self.cache_import_path = tk.StringVar()
@@ -999,7 +999,7 @@ class App(tk.Tk):
         self.match_input_path = tk.StringVar()
         self.match_output_path = tk.StringVar()
         self.rules_path = tk.StringVar(value=default_rules_path())
-        self.status = tk.StringVar(value="请选择要处理的 Excel 或 CSV 文件。")
+        self.status = tk.StringVar(value="请选择表格导入价格库，或从价格库匹配售价。")
         self.progress = tk.IntVar(value=0)
         self.shipping_fee_vars = [tk.StringVar(value=str(default)) for _, default in SHIPPING_FEE_RULES]
         self.price_threshold = tk.StringVar(value=str(DEFAULT_PRICE_THRESHOLD))
@@ -1013,29 +1013,8 @@ class App(tk.Tk):
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(1, weight=1)
 
-        ttk.Label(frame, text="图书电商线上活动价格自动生成器", font=("Microsoft YaHei UI", 18, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky="w", pady=(0, 12)
-        )
-
-        ttk.Label(frame, text="导入文件").grid(row=1, column=0, sticky="w", pady=6)
-        ttk.Entry(frame, textvariable=self.input_path).grid(row=1, column=1, sticky="ew", padx=8)
-        ttk.Button(frame, text="选择", command=self.choose_input).grid(row=1, column=2, sticky="ew")
-
-        ttk.Label(frame, text="导出文件").grid(row=2, column=0, sticky="w", pady=6)
-        ttk.Entry(frame, textvariable=self.output_path).grid(row=2, column=1, sticky="ew", padx=8)
-        ttk.Button(frame, text="另存为", command=self.choose_output).grid(row=2, column=2, sticky="ew")
-
-        rules = "规则：固定识别“商品重量”列，新增“快递费”列；指定空白/零值行会删除。"
-        ttk.Label(frame, text=rules, foreground="#435064").grid(row=3, column=0, columnspan=3, sticky="w", pady=(12, 12))
-
-        match_frame = ttk.LabelFrame(frame, text="保存售价匹配规则", padding=10)
-        match_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 12))
-        match_frame.columnconfigure(1, weight=1)
-        ttk.Label(match_frame, text="售价匹配列名").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(match_frame, textvariable=self.price_match_column).grid(row=0, column=1, sticky="ew", pady=3)
-
         price_frame = ttk.LabelFrame(frame, text="售价规则", padding=10)
-        price_frame.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        price_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         price_frame.columnconfigure(1, weight=1)
         price_frame.columnconfigure(3, weight=1)
         ttk.Label(price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
@@ -1046,7 +1025,7 @@ class App(tk.Tk):
         ttk.Entry(price_frame, textvariable=self.high_price_margin, width=10).grid(row=1, column=3, sticky="w", pady=3)
 
         fee_frame = ttk.LabelFrame(frame, text="快递费规则（填写返回数字）", padding=10)
-        fee_frame.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        fee_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         fee_frame.columnconfigure(1, weight=1)
         fee_frame.columnconfigure(3, weight=1)
 
@@ -1058,11 +1037,8 @@ class App(tk.Tk):
                 row=row, column=column + 1, sticky="w", padx=(0, 18), pady=3
             )
 
-        self.run_button = ttk.Button(frame, text="开始处理", command=self.start_processing)
-        self.run_button.grid(row=7, column=0, columnspan=3, sticky="ew", ipady=8)
-
         import_cache_frame = ttk.LabelFrame(frame, text="导入表格到价格库", padding=10)
-        import_cache_frame.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(12, 12))
+        import_cache_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         import_cache_frame.columnconfigure(1, weight=1)
         ttk.Label(import_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(import_cache_frame, textvariable=self.cache_import_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
@@ -1076,7 +1052,7 @@ class App(tk.Tk):
         self.cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
         combo_cache_frame = ttk.LabelFrame(frame, text="导入严选组合商品编码到价格库", padding=10)
-        combo_cache_frame.grid(row=9, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        combo_cache_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         combo_cache_frame.columnconfigure(1, weight=1)
         ttk.Label(combo_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(combo_cache_frame, textvariable=self.combo_cache_import_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
@@ -1094,7 +1070,7 @@ class App(tk.Tk):
         self.combo_cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
         cache_frame = ttk.LabelFrame(frame, text="从价格库匹配售价", padding=10)
-        cache_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        cache_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         cache_frame.columnconfigure(1, weight=1)
         ttk.Label(cache_frame, text="导入新表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(cache_frame, textvariable=self.match_input_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
@@ -1109,10 +1085,10 @@ class App(tk.Tk):
         self.match_button.grid(row=3, column=0, columnspan=3, sticky="ew", ipady=6)
 
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
-        self.progress_bar.grid(row=11, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        self.progress_bar.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(14, 0))
 
         ttk.Label(frame, textvariable=self.status, foreground="#1f7a8c", wraplength=590).grid(
-            row=12, column=0, columnspan=3, sticky="w", pady=(10, 0)
+            row=6, column=0, columnspan=3, sticky="w", pady=(10, 0)
         )
 
     def choose_input(self):
@@ -1522,7 +1498,6 @@ class App(tk.Tk):
         self.after(0, update)
 
     def _set_buttons_state(self, state):
-        self.run_button.config(state=state)
         self.cache_import_button.config(state=state)
         self.combo_cache_import_button.config(state=state)
         self.match_button.config(state=state)
