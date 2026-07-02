@@ -1157,9 +1157,11 @@ class App(tk.Tk):
             row=1, column=0, columnspan=3, sticky="w", pady=(6, 8)
         )
         self.match_button = ttk.Button(cache_frame, text="匹配售价并导出", command=self.start_price_match)
-        self.match_button.grid(row=2, column=0, columnspan=2, sticky="ew", ipady=6, padx=(0, 8))
+        self.match_button.grid(row=2, column=0, sticky="ew", ipady=6, padx=(0, 8))
         self.export_cache_button = ttk.Button(cache_frame, text="导出价格库", command=self.start_export_price_cache)
-        self.export_cache_button.grid(row=2, column=2, sticky="ew", ipady=6)
+        self.export_cache_button.grid(row=2, column=1, sticky="ew", ipady=6, padx=(0, 8))
+        self.clear_cache_button = ttk.Button(cache_frame, text="清空价格库", command=self.start_clear_price_cache)
+        self.clear_cache_button.grid(row=2, column=2, sticky="ew", ipady=6)
 
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
         self.progress_bar.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
@@ -1511,6 +1513,36 @@ class App(tk.Tk):
         )
         thread.start()
 
+    def start_clear_price_cache(self):
+        try:
+            price_cache = load_price_cache()
+        except Exception as error:
+            messagebox.showwarning("读取失败", f"价格库读取失败：{error}")
+            return
+
+        if not price_cache:
+            messagebox.showinfo("价格库为空", "当前价格库没有已保存的售价记录。")
+            return
+
+        confirmed = messagebox.askyesno(
+            "确认清空价格库",
+            f"当前价格库共有 {len(price_cache)} 条售价记录。\n\n确定要全部清空吗？此操作不能撤销。",
+        )
+        if not confirmed:
+            return
+
+        try:
+            save_price_cache({})
+        except Exception as error:
+            messagebox.showerror("清空失败", f"价格库清空失败：{error}")
+            return
+
+        self.progress_bar.stop()
+        self.progress_bar.config(mode="determinate")
+        self.progress.set(100)
+        self.status.set("价格库已清空。")
+        messagebox.showinfo("清空完成", f"价格库已清空，共删除 {len(price_cache)} 条售价记录。")
+
     def _match_prices_in_thread(self, input_path, output_path, price_cache):
         try:
             extension = os.path.splitext(input_path)[1].lower()
@@ -1649,6 +1681,7 @@ class App(tk.Tk):
         self.combo_cache_import_button.config(state=state)
         self.match_button.config(state=state)
         self.export_cache_button.config(state=state)
+        self.clear_cache_button.config(state=state)
 
     def _finish_success(self, output_path, kept, deleted, matched, saved):
         self._set_buttons_state("normal")
