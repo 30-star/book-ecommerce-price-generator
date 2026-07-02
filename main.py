@@ -24,6 +24,7 @@ INSERTED_COLUMN_NAME = "快递费"
 PRICE_COLUMN_NAME = "售价"
 PRODUCT_COLUMN_NAME = "商品名"
 PRODUCT_CODE_COLUMN_NAME = "商品编码"
+SPEC_CODE_COLUMN_NAME = "规格编码"
 COMBO_PRODUCT_CODE_COLUMN_NAME = "组合商品编码"
 AVAILABLE_COLUMN_NAME = "可用数"
 STOCK_COLUMN_NAME = "库存"
@@ -52,6 +53,7 @@ SHIPPING_FEE_RULES = [
 ]
 COLUMN_ALIASES = {
     COMBO_WEIGHT_COLUMN_NAME: ["组合商品重量"],
+    SPEC_CODE_COLUMN_NAME: ["规则编码"],
 }
 DEFAULT_DELETE_RULES = [
     {
@@ -734,8 +736,8 @@ def append_cached_prices_xlsx(input_path, output_path, progress_callback=None, p
             headers = list(header)
             header_map = build_header_map(headers)
 
-            if find_header_index(headers, PRODUCT_CODE_COLUMN_NAME) == -1:
-                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{PRODUCT_CODE_COLUMN_NAME}”列。")
+            if find_header_index(headers, SPEC_CODE_COLUMN_NAME) == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{SPEC_CODE_COLUMN_NAME}”列。")
 
             target_sheet.append(headers + [PRICE_COLUMN_NAME])
 
@@ -745,7 +747,7 @@ def append_cached_prices_xlsx(input_path, output_path, progress_callback=None, p
             for row_number, row in enumerate(rows, start=2):
                 row_values = list(row)
                 processed_rows += 1
-                product_code = normalize_match_key(get_row_column_value(row_values, header_map, PRODUCT_CODE_COLUMN_NAME))
+                product_code = normalize_match_key(get_row_column_value(row_values, header_map, SPEC_CODE_COLUMN_NAME))
                 price = price_cache.get(product_code) if product_code else None
 
                 if price is None:
@@ -797,8 +799,8 @@ def append_cached_prices_csv(input_path, output_path, progress_callback=None, pr
             raise ValueError("CSV 文件为空。")
 
         header_map = build_header_map(header)
-        if find_header_index(header, PRODUCT_CODE_COLUMN_NAME) == -1:
-            raise ValueError(f"没有找到“{PRODUCT_CODE_COLUMN_NAME}”列。")
+        if find_header_index(header, SPEC_CODE_COLUMN_NAME) == -1:
+            raise ValueError(f"没有找到“{SPEC_CODE_COLUMN_NAME}”列。")
 
         with open(output_path, "w", newline="", encoding="utf-8-sig") as target_file:
             writer = csv.writer(target_file)
@@ -810,7 +812,7 @@ def append_cached_prices_csv(input_path, output_path, progress_callback=None, pr
 
             for row_number, row in enumerate(reader, start=2):
                 processed_rows += 1
-                product_code = normalize_match_key(get_row_column_value(row, header_map, PRODUCT_CODE_COLUMN_NAME))
+                product_code = normalize_match_key(get_row_column_value(row, header_map, SPEC_CODE_COLUMN_NAME))
                 price = price_cache.get(product_code) if product_code else None
 
                 if price is None:
@@ -1115,7 +1117,7 @@ class App(tk.Tk):
         ttk.Label(cache_frame, text="导出新表格").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(cache_frame, textvariable=self.match_output_path).grid(row=1, column=1, sticky="ew", padx=(0, 8), pady=3)
         ttk.Button(cache_frame, text="另存为", command=self.choose_match_output).grid(row=1, column=2, sticky="ew", pady=3)
-        ttk.Label(cache_frame, text="固定查找“商品编码”，在新表格末尾新增“售价”列。", foreground="#435064").grid(
+        ttk.Label(cache_frame, text="固定查找“规格编码”，匹配价格库商品编码，并在新表格末尾新增“售价”列。", foreground="#435064").grid(
             row=2, column=0, columnspan=3, sticky="w", pady=(6, 8)
         )
         self.match_button = ttk.Button(cache_frame, text="匹配售价并导出", command=self.start_price_match)
