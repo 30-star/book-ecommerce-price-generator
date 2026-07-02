@@ -990,8 +990,8 @@ class App(tk.Tk):
         icon_path = resource_path("app.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
-        self.geometry("780x780")
-        self.minsize(720, 700)
+        self.geometry("780x690")
+        self.minsize(720, 640)
         self.input_path = tk.StringVar()
         self.output_path = tk.StringVar()
         self.cache_import_path = tk.StringVar()
@@ -1037,30 +1037,35 @@ class App(tk.Tk):
                 row=row, column=column + 1, sticky="w", padx=(0, 18), pady=3
             )
 
-        import_cache_frame = ttk.LabelFrame(frame, text="导入表格到价格库", padding=10)
-        import_cache_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
-        import_cache_frame.columnconfigure(1, weight=1)
+        import_frames = ttk.Frame(frame)
+        import_frames.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        import_frames.columnconfigure(0, weight=1)
+        import_frames.columnconfigure(1, weight=1)
+
+        import_cache_frame = ttk.LabelFrame(import_frames, text="导入表格到价格库", padding=10)
+        import_cache_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         ttk.Label(import_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(import_cache_frame, textvariable=self.cache_import_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
+        ttk.Entry(import_cache_frame, textvariable=self.cache_import_path, width=28).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=3)
         ttk.Button(import_cache_frame, text="选择", command=self.choose_cache_import).grid(row=0, column=2, sticky="ew", pady=3)
         ttk.Label(
             import_cache_frame,
             text="读取“商品编码”“商品重量”“成本价”，按当前公式计算售价并保存到价格库。",
             foreground="#435064",
+            wraplength=320,
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 8))
         self.cache_import_button = ttk.Button(import_cache_frame, text="计算并导入价格库", command=self.start_price_cache_import)
         self.cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
-        combo_cache_frame = ttk.LabelFrame(frame, text="导入严选组合商品编码到价格库", padding=10)
-        combo_cache_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 12))
-        combo_cache_frame.columnconfigure(1, weight=1)
+        combo_cache_frame = ttk.LabelFrame(import_frames, text="导入严选组合商品编码到价格库", padding=10)
+        combo_cache_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
         ttk.Label(combo_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(combo_cache_frame, textvariable=self.combo_cache_import_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
+        ttk.Entry(combo_cache_frame, textvariable=self.combo_cache_import_path, width=28).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=3)
         ttk.Button(combo_cache_frame, text="选择", command=self.choose_combo_cache_import).grid(row=0, column=2, sticky="ew", pady=3)
         ttk.Label(
             combo_cache_frame,
             text="读取“组合商品编码”“组合重量”“组合成本价”，按当前公式计算售价并保存到价格库。",
             foreground="#435064",
+            wraplength=320,
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 8))
         self.combo_cache_import_button = ttk.Button(
             combo_cache_frame,
@@ -1070,7 +1075,7 @@ class App(tk.Tk):
         self.combo_cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
         cache_frame = ttk.LabelFrame(frame, text="从价格库匹配售价", padding=10)
-        cache_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        cache_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         cache_frame.columnconfigure(1, weight=1)
         ttk.Label(cache_frame, text="导入新表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(cache_frame, textvariable=self.match_input_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
@@ -1085,10 +1090,10 @@ class App(tk.Tk):
         self.match_button.grid(row=3, column=0, columnspan=3, sticky="ew", ipady=6)
 
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
-        self.progress_bar.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        self.progress_bar.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(14, 0))
 
         ttk.Label(frame, textvariable=self.status, foreground="#1f7a8c", wraplength=590).grid(
-            row=6, column=0, columnspan=3, sticky="w", pady=(10, 0)
+            row=5, column=0, columnspan=3, sticky="w", pady=(10, 0)
         )
 
     def choose_input(self):
