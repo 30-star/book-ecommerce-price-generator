@@ -1072,8 +1072,16 @@ class App(tk.Tk):
         price_frames.columnconfigure(0, weight=1)
         price_frames.columnconfigure(1, weight=1)
 
-        price_frame = ttk.LabelFrame(price_frames, text="普通商品售价规则", padding=10)
-        price_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        normal_group = ttk.LabelFrame(price_frames, text="普通商品", padding=10)
+        normal_group.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        normal_group.columnconfigure(0, weight=1)
+
+        combo_group = ttk.LabelFrame(price_frames, text="组合商品", padding=10)
+        combo_group.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        combo_group.columnconfigure(0, weight=1)
+
+        price_frame = ttk.LabelFrame(normal_group, text="售价规则", padding=10)
+        price_frame.grid(row=0, column=0, sticky="ew")
         ttk.Label(price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(price_frame, textvariable=self.price_threshold, width=8).grid(row=0, column=1, sticky="w", pady=3)
         ttk.Label(price_frame, text="成本<=分界 毛利率").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
@@ -1081,8 +1089,8 @@ class App(tk.Tk):
         ttk.Label(price_frame, text="成本>分界 毛利率").grid(row=1, column=2, sticky="w", padx=(16, 8), pady=3)
         ttk.Entry(price_frame, textvariable=self.high_price_margin, width=8).grid(row=1, column=3, sticky="w", pady=3)
 
-        combo_price_frame = ttk.LabelFrame(price_frames, text="组合售价规则", padding=10)
-        combo_price_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        combo_price_frame = ttk.LabelFrame(combo_group, text="组合售价规则", padding=10)
+        combo_price_frame.grid(row=0, column=0, sticky="ew")
         ttk.Label(combo_price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(combo_price_frame, textvariable=self.combo_price_threshold, width=8).grid(row=0, column=1, sticky="w", pady=3)
         ttk.Label(combo_price_frame, text="成本<=分界 毛利率").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
@@ -1103,15 +1111,11 @@ class App(tk.Tk):
                 row=row, column=column + 1, sticky="w", padx=(0, 18), pady=3
             )
 
-        import_frames = ttk.Frame(frame)
-        import_frames.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
-        import_frames.columnconfigure(0, weight=1)
-        import_frames.columnconfigure(1, weight=1)
-
-        import_cache_frame = ttk.LabelFrame(import_frames, text="导入表格到价格库", padding=10)
-        import_cache_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        import_cache_frame = ttk.LabelFrame(normal_group, text="导入表格到价格库", padding=10)
+        import_cache_frame.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        import_cache_frame.columnconfigure(1, weight=1)
         ttk.Label(import_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(import_cache_frame, textvariable=self.cache_import_path, width=28).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(import_cache_frame, textvariable=self.cache_import_path, width=28).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
         ttk.Button(import_cache_frame, text="选择", command=self.choose_cache_import).grid(row=0, column=2, sticky="ew", pady=3)
         ttk.Label(
             import_cache_frame,
@@ -1122,10 +1126,11 @@ class App(tk.Tk):
         self.cache_import_button = ttk.Button(import_cache_frame, text="计算并导入价格库", command=self.start_price_cache_import)
         self.cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
-        combo_cache_frame = ttk.LabelFrame(import_frames, text="导入严选组合商品编码到价格库", padding=10)
-        combo_cache_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        combo_cache_frame = ttk.LabelFrame(combo_group, text="导入严选组合商品编码到价格库", padding=10)
+        combo_cache_frame.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        combo_cache_frame.columnconfigure(1, weight=1)
         ttk.Label(combo_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(combo_cache_frame, textvariable=self.combo_cache_import_path, width=28).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(combo_cache_frame, textvariable=self.combo_cache_import_path, width=28).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
         ttk.Button(combo_cache_frame, text="选择", command=self.choose_combo_cache_import).grid(row=0, column=2, sticky="ew", pady=3)
         ttk.Label(
             combo_cache_frame,
@@ -1141,7 +1146,7 @@ class App(tk.Tk):
         self.combo_cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
         cache_frame = ttk.LabelFrame(frame, text="从价格库匹配售价", padding=10)
-        cache_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        cache_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         cache_frame.columnconfigure(1, weight=1)
         ttk.Label(cache_frame, text="导入新表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(cache_frame, textvariable=self.match_input_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
@@ -1158,10 +1163,10 @@ class App(tk.Tk):
         self.export_cache_button.grid(row=3, column=2, sticky="ew", ipady=6)
 
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
-        self.progress_bar.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        self.progress_bar.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
 
         ttk.Label(frame, textvariable=self.status, foreground="#1f7a8c", wraplength=590).grid(
-            row=5, column=0, columnspan=3, sticky="w", pady=(10, 0)
+            row=4, column=0, columnspan=3, sticky="w", pady=(10, 0)
         )
 
     def choose_input(self):
