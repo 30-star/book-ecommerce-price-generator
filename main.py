@@ -1081,7 +1081,7 @@ class App(tk.Tk):
         ttk.Label(price_frame, text="成本>分界 毛利率").grid(row=1, column=2, sticky="w", padx=(16, 8), pady=3)
         ttk.Entry(price_frame, textvariable=self.high_price_margin, width=8).grid(row=1, column=3, sticky="w", pady=3)
 
-        combo_price_frame = ttk.LabelFrame(price_frames, text="严选组合售价规则", padding=10)
+        combo_price_frame = ttk.LabelFrame(price_frames, text="组合售价规则", padding=10)
         combo_price_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
         ttk.Label(combo_price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(combo_price_frame, textvariable=self.combo_price_threshold, width=8).grid(row=0, column=1, sticky="w", pady=3)
@@ -1338,7 +1338,7 @@ class App(tk.Tk):
             self.combo_price_threshold,
             self.combo_low_price_margin,
             self.combo_high_price_margin,
-            "严选组合售价规则",
+            "组合售价规则",
         )
 
     def start_processing(self):
