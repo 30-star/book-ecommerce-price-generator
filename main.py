@@ -203,7 +203,9 @@ def has_four_digit_number_less_than(value, threshold):
 
 
 def normalize_header_name(value):
-    return re.sub(r"\s+", "", str(value if value is not None else "").strip())
+    text = str(value if value is not None else "").strip()
+    text = text.replace("\ufeff", "").replace("\u200b", "").replace("\u200c", "").replace("\u200d", "")
+    return re.sub(r"[\s\u00a0\u3000:：()（）\[\]【】{}｛｝_-]+", "", text).lower()
 
 
 def find_header_index(headers, name):
