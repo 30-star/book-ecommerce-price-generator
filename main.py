@@ -30,7 +30,7 @@ STOCK_COLUMN_NAME = "库存"
 PRODUCT_TAG_COLUMN_NAME = "商品标签"
 SUPPLIER_COLUMN_NAME = "供应商"
 COST_PRICE_COLUMN_NAME = "成本价"
-COMBO_WEIGHT_COLUMN_NAME = "组合商品重量"
+COMBO_WEIGHT_COLUMN_NAME = "组合重量"
 COMBO_COST_PRICE_COLUMN_NAME = "组合成本价"
 SALES_15_DAYS_COLUMN_NAME = "15天销量"
 PRICE_CACHE_FILE_NAME = "price_cache.json"
@@ -1083,7 +1083,7 @@ class App(tk.Tk):
         ttk.Button(combo_cache_frame, text="选择", command=self.choose_combo_cache_import).grid(row=0, column=2, sticky="ew", pady=3)
         ttk.Label(
             combo_cache_frame,
-            text="读取“组合商品编码”“组合商品重量”“组合成本价”，按当前公式计算售价并保存到价格库。",
+            text="读取“组合商品编码”“组合重量”“组合成本价”，按当前公式计算售价并保存到价格库。",
             foreground="#435064",
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 8))
         self.combo_cache_import_button = ttk.Button(
