@@ -1005,6 +1005,9 @@ class App(tk.Tk):
         self.price_threshold = tk.StringVar(value=str(DEFAULT_PRICE_THRESHOLD))
         self.low_price_margin = tk.StringVar(value=str(DEFAULT_LOW_PRICE_MARGIN))
         self.high_price_margin = tk.StringVar(value=str(DEFAULT_HIGH_PRICE_MARGIN))
+        self.combo_price_threshold = tk.StringVar(value=str(DEFAULT_PRICE_THRESHOLD))
+        self.combo_low_price_margin = tk.StringVar(value=str(DEFAULT_LOW_PRICE_MARGIN))
+        self.combo_high_price_margin = tk.StringVar(value=str(DEFAULT_HIGH_PRICE_MARGIN))
         self.price_match_column = tk.StringVar(value=DEFAULT_PRICE_MATCH_COLUMN_NAME)
         self._build_ui()
 
@@ -1013,16 +1016,28 @@ class App(tk.Tk):
         frame.pack(fill="both", expand=True)
         frame.columnconfigure(1, weight=1)
 
-        price_frame = ttk.LabelFrame(frame, text="售价规则", padding=10)
-        price_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
-        price_frame.columnconfigure(1, weight=1)
-        price_frame.columnconfigure(3, weight=1)
+        price_frames = ttk.Frame(frame)
+        price_frames.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        price_frames.columnconfigure(0, weight=1)
+        price_frames.columnconfigure(1, weight=1)
+
+        price_frame = ttk.LabelFrame(price_frames, text="普通商品售价规则", padding=10)
+        price_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         ttk.Label(price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(price_frame, textvariable=self.price_threshold, width=10).grid(row=0, column=1, sticky="w", pady=3)
-        ttk.Label(price_frame, text="成本价 <= 分界值，请输入毛利率").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
-        ttk.Entry(price_frame, textvariable=self.low_price_margin, width=10).grid(row=1, column=1, sticky="w", pady=3)
-        ttk.Label(price_frame, text="成本价 > 分界值，请输入毛利率").grid(row=1, column=2, sticky="w", padx=(18, 8), pady=3)
-        ttk.Entry(price_frame, textvariable=self.high_price_margin, width=10).grid(row=1, column=3, sticky="w", pady=3)
+        ttk.Entry(price_frame, textvariable=self.price_threshold, width=8).grid(row=0, column=1, sticky="w", pady=3)
+        ttk.Label(price_frame, text="<= 毛利率").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(price_frame, textvariable=self.low_price_margin, width=8).grid(row=1, column=1, sticky="w", pady=3)
+        ttk.Label(price_frame, text="> 毛利率").grid(row=1, column=2, sticky="w", padx=(16, 8), pady=3)
+        ttk.Entry(price_frame, textvariable=self.high_price_margin, width=8).grid(row=1, column=3, sticky="w", pady=3)
+
+        combo_price_frame = ttk.LabelFrame(price_frames, text="严选组合售价规则", padding=10)
+        combo_price_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        ttk.Label(combo_price_frame, text="分界成本价").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(combo_price_frame, textvariable=self.combo_price_threshold, width=8).grid(row=0, column=1, sticky="w", pady=3)
+        ttk.Label(combo_price_frame, text="<= 毛利率").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(combo_price_frame, textvariable=self.combo_low_price_margin, width=8).grid(row=1, column=1, sticky="w", pady=3)
+        ttk.Label(combo_price_frame, text="> 毛利率").grid(row=1, column=2, sticky="w", padx=(16, 8), pady=3)
+        ttk.Entry(combo_price_frame, textvariable=self.combo_high_price_margin, width=8).grid(row=1, column=3, sticky="w", pady=3)
 
         fee_frame = ttk.LabelFrame(frame, text="快递费规则（填写返回数字）", padding=10)
         fee_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 12))
@@ -1244,18 +1259,34 @@ class App(tk.Tk):
 
         return fees
 
-    def get_price_rules(self):
+    def get_price_rules_from_vars(self, threshold_var, low_margin_var, high_margin_var, label):
         try:
-            threshold = float(self.price_threshold.get().strip())
-            low_margin = float(self.low_price_margin.get().strip())
-            high_margin = float(self.high_price_margin.get().strip())
+            threshold = float(threshold_var.get().strip())
+            low_margin = float(low_margin_var.get().strip())
+            high_margin = float(high_margin_var.get().strip())
         except ValueError:
-            raise ValueError("售价规则里的分界值和毛利率都必须填写数字。")
+            raise ValueError(f"{label}里的分界值和毛利率都必须填写数字。")
 
         if not (0 <= low_margin < 1) or not (0 <= high_margin < 1):
-            raise ValueError("售价规则里的两个毛利率都必须大于等于 0，并且小于 1。")
+            raise ValueError(f"{label}里的两个毛利率都必须大于等于 0，并且小于 1。")
 
         return threshold, low_margin, high_margin
+
+    def get_price_rules(self):
+        return self.get_price_rules_from_vars(
+            self.price_threshold,
+            self.low_price_margin,
+            self.high_price_margin,
+            "普通商品售价规则",
+        )
+
+    def get_combo_price_rules(self):
+        return self.get_price_rules_from_vars(
+            self.combo_price_threshold,
+            self.combo_low_price_margin,
+            self.combo_high_price_margin,
+            "严选组合售价规则",
+        )
 
     def start_processing(self):
         input_path = self.input_path.get().strip()
@@ -1305,6 +1336,7 @@ class App(tk.Tk):
             COST_PRICE_COLUMN_NAME,
             "价格库",
             "请先选择要导入价格库的表格文件。",
+            self.get_price_rules,
         )
 
     def start_combo_price_cache_import(self):
@@ -1315,16 +1347,26 @@ class App(tk.Tk):
             COMBO_COST_PRICE_COLUMN_NAME,
             "严选组合价格库",
             "请先选择要导入严选组合价格库的表格文件。",
+            self.get_combo_price_rules,
         )
 
-    def _start_price_cache_import(self, input_path, product_code_column, weight_column, cost_price_column, progress_label, missing_file_message):
+    def _start_price_cache_import(
+        self,
+        input_path,
+        product_code_column,
+        weight_column,
+        cost_price_column,
+        progress_label,
+        missing_file_message,
+        price_rules_getter,
+    ):
         if not input_path or not os.path.exists(input_path):
             messagebox.showwarning("缺少文件", missing_file_message)
             return
 
         try:
             shipping_fees = self.get_shipping_fees()
-            price_rules = self.get_price_rules()
+            price_rules = price_rules_getter()
             price_cache = load_price_cache()
         except ValueError as error:
             messagebox.showwarning("规则错误", str(error))
