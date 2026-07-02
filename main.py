@@ -203,8 +203,7 @@ def has_four_digit_number_less_than(value, threshold):
 
 
 def normalize_header_name(value):
-    text = str(value if value is not None else "").strip()
-    return re.sub(r"[\s\u00a0\u3000:：()（）\\[\\]【】_-]+", "", text).lower()
+    return re.sub(r"\s+", "", str(value if value is not None else "").strip())
 
 
 def find_header_index(headers, name):
@@ -229,30 +228,6 @@ def find_header_index(headers, name):
                 return index
 
     return -1
-
-
-def format_headers_for_error(headers):
-    visible_headers = [
-        str(value).strip()
-        for value in headers
-        if value is not None and str(value).strip()
-    ]
-    return "、".join(visible_headers[:20]) or "空白表头"
-
-
-def find_import_header_row(rows, required_columns, max_scan_rows=20):
-    scanned_headers = []
-
-    for row_number, row in enumerate(rows, start=1):
-        headers = list(row)
-        scanned_headers = headers
-        if all(find_header_index(headers, column) != -1 for column in required_columns):
-            return row_number, headers
-
-        if row_number >= max_scan_rows:
-            break
-
-    return None, scanned_headers
 
 
 def app_base_dir():
@@ -696,9 +671,8 @@ def process_csv(
         dialect = csv.Sniffer().sniff(sample) if sample.strip() else csv.excel
         reader = csv.reader(source_file, dialect)
 
-        required_columns = [product_code_column, weight_column, cost_price_column]
-        header_row_number, header = find_import_header_row(reader, required_columns)
-        if not header:
+        header = next(reader, None)
+        if header is None:
             raise ValueError("CSV 文件为空。")
 
         header_map = build_header_map(header)
@@ -909,13 +883,13 @@ def import_prices_to_cache_xlsx(
 
         for sheet_index, source_sheet in enumerate(source.worksheets, start=1):
             rows = source_sheet.iter_rows(values_only=True)
-            required_columns = [product_code_column, weight_column, cost_price_column]
-            header_row_number, headers = find_import_header_row(rows, required_columns)
+            header = next(rows, None)
 
-            if not headers:
+            if header is None:
                 summary.append((source_sheet.title, 0, 0, 0))
                 continue
 
+            headers = list(header)
             header_map = build_header_map(headers)
             product_code_index = find_header_index(headers, product_code_column)
             weight_index = find_header_index(headers, weight_column)
@@ -932,7 +906,7 @@ def import_prices_to_cache_xlsx(
             updated_rows = 0
             skipped_rows = 0
 
-            for row_number, row in enumerate(rows, start=header_row_number + 1):
+            for row_number, row in enumerate(rows, start=2):
                 row_values = list(row)
                 processed_rows += 1
                 product_code = normalize_price_cache_key(get_row_value(row_values, product_code_index))
@@ -1013,7 +987,7 @@ def import_prices_to_cache_csv(
         skipped_rows = 0
         processed_rows = 0
 
-        for row_number, row in enumerate(reader, start=header_row_number + 1):
+        for row_number, row in enumerate(reader, start=2):
             processed_rows += 1
             product_code = normalize_price_cache_key(get_row_value(row, product_code_index))
             weight_value = get_row_value(row, weight_index)
