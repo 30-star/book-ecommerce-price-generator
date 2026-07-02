@@ -296,6 +296,18 @@ def save_price_cache(price_cache, path=None):
         json.dump({"prices": normalized_cache}, cache_file, ensure_ascii=False, indent=2)
 
 
+def export_price_cache_xlsx(output_path, price_cache):
+    workbook = Workbook(write_only=True)
+    worksheet = workbook.create_sheet("价格库")
+    worksheet.append([PRODUCT_CODE_COLUMN_NAME, PRICE_COLUMN_NAME])
+
+    for product_code in sorted(price_cache):
+        worksheet.append([product_code, price_cache[product_code]])
+
+    workbook.save(output_path)
+    return len(price_cache)
+
+
 def load_delete_rules(path=None):
     rules_path = path or default_rules_path()
 
@@ -1141,7 +1153,9 @@ class App(tk.Tk):
             row=2, column=0, columnspan=3, sticky="w", pady=(6, 8)
         )
         self.match_button = ttk.Button(cache_frame, text="匹配售价并导出", command=self.start_price_match)
-        self.match_button.grid(row=3, column=0, columnspan=3, sticky="ew", ipady=6)
+        self.match_button.grid(row=3, column=0, columnspan=2, sticky="ew", ipady=6, padx=(0, 8))
+        self.export_cache_button = ttk.Button(cache_frame, text="导出价格库", command=self.start_export_price_cache)
+        self.export_cache_button.grid(row=3, column=2, sticky="ew", ipady=6)
 
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
         self.progress_bar.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(14, 0))
@@ -1458,6 +1472,41 @@ class App(tk.Tk):
         )
         thread.start()
 
+    def start_export_price_cache(self):
+        path = filedialog.asksaveasfilename(
+            title="选择价格库导出位置",
+            initialfile="价格库.xlsx",
+            initialdir=os.path.expanduser("~/Desktop"),
+            defaultextension=".xlsx",
+            filetypes=[("Excel 文件", "*.xlsx")],
+        )
+
+        if not path:
+            return
+
+        try:
+            price_cache = load_price_cache()
+        except Exception as error:
+            messagebox.showwarning("读取失败", f"价格库读取失败：{error}")
+            return
+
+        if not price_cache:
+            messagebox.showwarning("价格库为空", "当前价格库没有可导出的售价记录。")
+            return
+
+        self._set_buttons_state("disabled")
+        self.progress_bar.config(mode="indeterminate")
+        self.progress_bar.start(10)
+        self.progress.set(0)
+        self.status.set("正在导出价格库，请稍候...")
+
+        thread = threading.Thread(
+            target=self._export_price_cache_in_thread,
+            args=(path, price_cache),
+            daemon=True,
+        )
+        thread.start()
+
     def _match_prices_in_thread(self, input_path, output_path, price_cache):
         try:
             extension = os.path.splitext(input_path)[1].lower()
@@ -1472,6 +1521,14 @@ class App(tk.Tk):
             matched = sum(item[1] for item in summary)
             unmatched = sum(item[2] for item in summary)
             self.after(0, lambda: self._finish_match_success(output_path, matched, unmatched))
+        except Exception as error:
+            message = str(error)
+            self.after(0, lambda: self._finish_error(message))
+
+    def _export_price_cache_in_thread(self, output_path, price_cache):
+        try:
+            exported = export_price_cache_xlsx(output_path, price_cache)
+            self.after(0, lambda: self._finish_export_cache_success(output_path, exported))
         except Exception as error:
             message = str(error)
             self.after(0, lambda: self._finish_error(message))
@@ -1587,6 +1644,7 @@ class App(tk.Tk):
         self.cache_import_button.config(state=state)
         self.combo_cache_import_button.config(state=state)
         self.match_button.config(state=state)
+        self.export_cache_button.config(state=state)
 
     def _finish_success(self, output_path, kept, deleted, matched, saved):
         self._set_buttons_state("normal")
@@ -1619,6 +1677,17 @@ class App(tk.Tk):
         messagebox.showinfo(
             "导入完成",
             f"价格库已更新。\n\n新增：{added} 条\n更新：{updated} 条\n跳过：{skipped} 行",
+        )
+
+    def _finish_export_cache_success(self, output_path, exported):
+        self._set_buttons_state("normal")
+        self.progress_bar.stop()
+        self.progress_bar.config(mode="determinate")
+        self.progress.set(100)
+        self.status.set(f"价格库导出完成：{exported} 条记录。")
+        messagebox.showinfo(
+            "导出完成",
+            f"价格库已导出：\n{output_path}\n\n共导出：{exported} 条记录",
         )
 
     def _finish_error(self, message):
