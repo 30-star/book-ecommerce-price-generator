@@ -1126,7 +1126,7 @@ class App(tk.Tk):
         self.cache_import_button = ttk.Button(import_cache_frame, text="计算并导入价格库", command=self.start_price_cache_import)
         self.cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
-        combo_cache_frame = ttk.LabelFrame(combo_group, text="导入组合商品编码到价格库", padding=10)
+        combo_cache_frame = ttk.LabelFrame(combo_group, text="导入组合商品表格到价格库", padding=10)
         combo_cache_frame.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         combo_cache_frame.columnconfigure(1, weight=1)
         ttk.Label(combo_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
