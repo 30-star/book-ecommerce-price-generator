@@ -257,6 +257,10 @@ def normalize_match_key(value):
     return str(value if value is not None else "").strip()
 
 
+def normalize_price_cache_key(value):
+    return normalize_match_key(value).upper()
+
+
 def load_price_cache(path=None):
     cache_path = path or default_price_cache_path()
 
@@ -270,14 +274,19 @@ def load_price_cache(path=None):
     if not isinstance(prices, dict):
         raise ValueError("售价保存文件格式错误：需要 prices 对象。")
 
-    return {normalize_match_key(key): value for key, value in prices.items() if normalize_match_key(key)}
+    return {normalize_price_cache_key(key): value for key, value in prices.items() if normalize_price_cache_key(key)}
 
 
 def save_price_cache(price_cache, path=None):
     cache_path = path or default_price_cache_path()
+    normalized_cache = {
+        normalize_price_cache_key(key): value
+        for key, value in price_cache.items()
+        if normalize_price_cache_key(key)
+    }
 
     with open(cache_path, "w", encoding="utf-8") as cache_file:
-        json.dump({"prices": price_cache}, cache_file, ensure_ascii=False, indent=2)
+        json.dump({"prices": normalized_cache}, cache_file, ensure_ascii=False, indent=2)
 
 
 def load_delete_rules(path=None):
@@ -456,7 +465,7 @@ def calculate_price(cost_price_value, shipping_fee_value, price_rules=None):
 
 
 def resolve_price(row, header_map, cost_price_index, shipping_fee, price_rules, price_match_column, price_cache):
-    match_key = normalize_match_key(get_row_column_value(row, header_map, price_match_column))
+    match_key = normalize_price_cache_key(get_row_column_value(row, header_map, price_match_column))
 
     if match_key and match_key in price_cache:
         return price_cache[match_key], True, False
@@ -747,7 +756,7 @@ def append_cached_prices_xlsx(input_path, output_path, progress_callback=None, p
             for row_number, row in enumerate(rows, start=2):
                 row_values = list(row)
                 processed_rows += 1
-                product_code = normalize_match_key(get_row_column_value(row_values, header_map, SPEC_CODE_COLUMN_NAME))
+                product_code = normalize_price_cache_key(get_row_column_value(row_values, header_map, SPEC_CODE_COLUMN_NAME))
                 price = price_cache.get(product_code) if product_code else None
 
                 if price is None:
@@ -812,7 +821,7 @@ def append_cached_prices_csv(input_path, output_path, progress_callback=None, pr
 
             for row_number, row in enumerate(reader, start=2):
                 processed_rows += 1
-                product_code = normalize_match_key(get_row_column_value(row, header_map, SPEC_CODE_COLUMN_NAME))
+                product_code = normalize_price_cache_key(get_row_column_value(row, header_map, SPEC_CODE_COLUMN_NAME))
                 price = price_cache.get(product_code) if product_code else None
 
                 if price is None:
@@ -877,7 +886,7 @@ def import_prices_to_cache_xlsx(
             for row_number, row in enumerate(rows, start=2):
                 row_values = list(row)
                 processed_rows += 1
-                product_code = normalize_match_key(get_row_value(row_values, product_code_index))
+                product_code = normalize_price_cache_key(get_row_value(row_values, product_code_index))
                 weight_value = get_row_value(row_values, weight_index)
                 cost_price_value = get_row_value(row_values, cost_price_index)
                 shipping_fee = calculate_shipping_fee(weight_value, shipping_fees)
@@ -957,7 +966,7 @@ def import_prices_to_cache_csv(
 
         for row_number, row in enumerate(reader, start=2):
             processed_rows += 1
-            product_code = normalize_match_key(get_row_value(row, product_code_index))
+            product_code = normalize_price_cache_key(get_row_value(row, product_code_index))
             weight_value = get_row_value(row, weight_index)
             cost_price_value = get_row_value(row, cost_price_index)
             shipping_fee = calculate_shipping_fee(weight_value, shipping_fees)
