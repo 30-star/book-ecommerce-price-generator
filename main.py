@@ -1111,7 +1111,7 @@ class App(tk.Tk):
                 row=row, column=column + 1, sticky="w", padx=(0, 18), pady=3
             )
 
-        import_cache_frame = ttk.LabelFrame(normal_group, text="导入表格到价格库", padding=10)
+        import_cache_frame = ttk.LabelFrame(normal_group, text="导入单品表格到价格库", padding=10)
         import_cache_frame.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         import_cache_frame.columnconfigure(1, weight=1)
         ttk.Label(import_cache_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
