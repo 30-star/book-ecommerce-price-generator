@@ -261,6 +261,13 @@ def normalize_price_cache_key(value):
     return normalize_match_key(value).upper()
 
 
+def normalize_spec_code_for_price_lookup(value):
+    spec_code = normalize_match_key(value)
+    if "$$" in spec_code:
+        spec_code = spec_code.split("$$", 1)[0]
+    return normalize_price_cache_key(spec_code)
+
+
 def load_price_cache(path=None):
     cache_path = path or default_price_cache_path()
 
@@ -756,7 +763,9 @@ def append_cached_prices_xlsx(input_path, output_path, progress_callback=None, p
             for row_number, row in enumerate(rows, start=2):
                 row_values = list(row)
                 processed_rows += 1
-                product_code = normalize_price_cache_key(get_row_column_value(row_values, header_map, SPEC_CODE_COLUMN_NAME))
+                product_code = normalize_spec_code_for_price_lookup(
+                    get_row_column_value(row_values, header_map, SPEC_CODE_COLUMN_NAME)
+                )
                 price = price_cache.get(product_code) if product_code else None
 
                 if price is None:
@@ -821,7 +830,9 @@ def append_cached_prices_csv(input_path, output_path, progress_callback=None, pr
 
             for row_number, row in enumerate(reader, start=2):
                 processed_rows += 1
-                product_code = normalize_price_cache_key(get_row_column_value(row, header_map, SPEC_CODE_COLUMN_NAME))
+                product_code = normalize_spec_code_for_price_lookup(
+                    get_row_column_value(row, header_map, SPEC_CODE_COLUMN_NAME)
+                )
                 price = price_cache.get(product_code) if product_code else None
 
                 if price is None:
