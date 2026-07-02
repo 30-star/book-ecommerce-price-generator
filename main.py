@@ -1068,7 +1068,7 @@ class App(tk.Tk):
         frame.columnconfigure(1, weight=1)
 
         price_frames = ttk.Frame(frame)
-        price_frames.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        price_frames.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         price_frames.columnconfigure(0, weight=1)
         price_frames.columnconfigure(1, weight=1)
 
@@ -1091,7 +1091,7 @@ class App(tk.Tk):
         ttk.Entry(combo_price_frame, textvariable=self.combo_high_price_margin, width=8).grid(row=1, column=3, sticky="w", pady=3)
 
         fee_frame = ttk.LabelFrame(frame, text="快递费规则（填写返回数字）", padding=10)
-        fee_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        fee_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
         fee_frame.columnconfigure(1, weight=1)
         fee_frame.columnconfigure(3, weight=1)
 
