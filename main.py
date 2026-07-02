@@ -50,6 +50,9 @@ SHIPPING_FEE_RULES = [
     ("4 <= 商品重量 < 5", 5.6),
     ("商品重量 >= 5", 13.5),
 ]
+COLUMN_ALIASES = {
+    COMBO_WEIGHT_COLUMN_NAME: ["组合商品重量"],
+}
 DEFAULT_DELETE_RULES = [
     {
         "name": "商品名和成本价都空白",
@@ -197,16 +200,30 @@ def has_four_digit_number_less_than(value, threshold):
     return any(int(match) < threshold for match in re.findall(r"\d{4}", text))
 
 
+def normalize_header_name(value):
+    return re.sub(r"\s+", "", str(value if value is not None else "").strip())
+
+
 def find_header_index(headers, name):
     normalized = [str(value if value is not None else "").strip() for value in headers]
+    compact_headers = [normalize_header_name(value) for value in headers]
+    names = [name] + COLUMN_ALIASES.get(name, [])
+    compact_names = [normalize_header_name(value) for value in names]
 
     for index, header in enumerate(normalized):
-        if header == name:
-            return index
+        for candidate in names:
+            if header == candidate:
+                return index
 
     for index, header in enumerate(normalized):
-        if name in header:
-            return index
+        for candidate in names:
+            if candidate in header:
+                return index
+
+    for index, header in enumerate(compact_headers):
+        for candidate in compact_names:
+            if header == candidate or candidate in header:
+                return index
 
     return -1
 
