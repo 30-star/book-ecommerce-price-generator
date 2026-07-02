@@ -1041,8 +1041,8 @@ class App(tk.Tk):
         icon_path = resource_path("app.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
-        self.geometry("780x690")
-        self.minsize(720, 640)
+        self.geometry("780x780")
+        self.minsize(720, 740)
         self.input_path = tk.StringVar()
         self.output_path = tk.StringVar()
         self.cache_import_path = tk.StringVar()
