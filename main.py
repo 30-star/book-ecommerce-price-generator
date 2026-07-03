@@ -40,16 +40,16 @@ DEFAULT_PRICE_THRESHOLD = 4.5
 DEFAULT_LOW_PRICE_MARGIN = 0.13
 DEFAULT_HIGH_PRICE_MARGIN = 0.13
 SHIPPING_FEE_RULES = [
-    ("0 < 商品重量 < 0.3", 1.3),
-    ("0.3 <= 商品重量 < 0.5", 1.5),
-    ("0.5 <= 商品重量 < 1", 1.9),
-    ("1 <= 商品重量 < 1.5", 2.3),
-    ("1.5 <= 商品重量 < 2", 2.8),
-    ("2 <= 商品重量 < 2.5", 3.5),
-    ("2.5 <= 商品重量 < 3", 3.9),
-    ("3 <= 商品重量 < 4", 4.3),
-    ("4 <= 商品重量 < 5", 5.6),
-    ("商品重量 >= 5", 13.5),
+    ("0 < 商品重量 < 0.25", 1.3),
+    ("0.25 <= 商品重量 < 0.4", 1.5),
+    ("0.4 <= 商品重量 < 0.9", 1.9),
+    ("0.9 <= 商品重量 < 1.4", 2.3),
+    ("1.4 <= 商品重量 < 1.9", 2.8),
+    ("1.9 <= 商品重量 < 2.4", 3.5),
+    ("2.4 <= 商品重量 < 2.9", 3.9),
+    ("2.9 <= 商品重量 < 3.9", 4.3),
+    ("3.9 <= 商品重量 < 4.9", 5.6),
+    ("商品重量 >= 4.9", 13.5),
 ]
 COLUMN_ALIASES = {
     COMBO_WEIGHT_COLUMN_NAME: ["组合商品重量"],
@@ -436,25 +436,25 @@ def calculate_shipping_fee(value, shipping_fees=None):
 
     if weight is None or weight == 0:
         return "请检查"
-    if 0 < weight < 0.3:
+    if 0 < weight < 0.25:
         return fees[0]
-    if 0.3 <= weight < 0.5:
+    if 0.25 <= weight < 0.4:
         return fees[1]
-    if 0.5 <= weight < 1:
+    if 0.4 <= weight < 0.9:
         return fees[2]
-    if 1 <= weight < 1.5:
+    if 0.9 <= weight < 1.4:
         return fees[3]
-    if 1.5 <= weight < 2:
+    if 1.4 <= weight < 1.9:
         return fees[4]
-    if 2 <= weight < 2.5:
+    if 1.9 <= weight < 2.4:
         return fees[5]
-    if 2.5 <= weight < 3:
+    if 2.4 <= weight < 2.9:
         return fees[6]
-    if 3 <= weight < 4:
+    if 2.9 <= weight < 3.9:
         return fees[7]
-    if 4 <= weight < 5:
+    if 3.9 <= weight < 4.9:
         return fees[8]
-    if weight >= 5:
+    if weight >= 4.9:
         return fees[9]
 
     return "请检查"
