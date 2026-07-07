@@ -100,13 +100,14 @@ def resolve_price(row, header_map, cost_price_index, shipping_fee, price_rules, 
     match_key = normalize_price_cache_key(get_row_column_value(row, header_map, price_match_column))
 
     if match_key and match_key in price_cache:
-        return price_cache[match_key], True, False
+        return price_cache[match_key].get("price"), True, False
 
     cost_price_value = get_row_value(row, cost_price_index)
+    cost_price = parse_number(cost_price_value)
     price = calculate_price(cost_price_value, shipping_fee, price_rules)
 
     if match_key and price is not None:
-        price_cache[match_key] = price
+        price_cache[match_key] = {"cost_price": cost_price, "shipping_fee": shipping_fee, "price": price}
         return price, False, True
 
     return price, False, False

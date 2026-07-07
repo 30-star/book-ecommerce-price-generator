@@ -7,7 +7,7 @@ from openpyxl import Workbook, load_workbook
 from .constants import *
 from .headers import build_header_map, find_header_index, get_row_column_value
 from .pricing import calculate_price, calculate_shipping_fee, normalize_price_cache_key, normalize_spec_code_for_price_lookup, resolve_price
-from .rules import get_row_value, should_delete_row
+from .rules import get_row_value, parse_number, should_delete_row
 
 warnings.filterwarnings(
     "ignore",
@@ -304,7 +304,8 @@ def append_cached_prices_xlsx(input_path, output_path, progress_callback=None, p
                 product_code = normalize_spec_code_for_price_lookup(
                     get_row_column_value(row_values, header_map, SPEC_CODE_COLUMN_NAME)
                 )
-                price = price_cache.get(product_code) if product_code else None
+                cached_record = price_cache.get(product_code) if product_code else None
+                price = cached_record.get("price") if cached_record else None
 
                 if price is None:
                     unmatched_rows += 1
@@ -371,7 +372,8 @@ def append_cached_prices_csv(input_path, output_path, progress_callback=None, pr
                 product_code = normalize_spec_code_for_price_lookup(
                     get_row_column_value(row, header_map, SPEC_CODE_COLUMN_NAME)
                 )
-                price = price_cache.get(product_code) if product_code else None
+                cached_record = price_cache.get(product_code) if product_code else None
+                price = cached_record.get("price") if cached_record else None
 
                 if price is None:
                     unmatched_rows += 1
@@ -438,16 +440,17 @@ def import_prices_to_cache_xlsx(
                 product_code = normalize_price_cache_key(get_row_value(row_values, product_code_index))
                 weight_value = get_row_value(row_values, weight_index)
                 cost_price_value = get_row_value(row_values, cost_price_index)
+                cost_price = parse_number(cost_price_value)
                 shipping_fee = calculate_shipping_fee(weight_value, shipping_fees)
                 price = calculate_price(cost_price_value, shipping_fee, price_rules)
 
                 if not product_code or price is None:
                     skipped_rows += 1
                 elif product_code in price_cache:
-                    price_cache[product_code] = price
+                    price_cache[product_code] = {"cost_price": cost_price, "shipping_fee": shipping_fee, "price": price}
                     updated_rows += 1
                 else:
-                    price_cache[product_code] = price
+                    price_cache[product_code] = {"cost_price": cost_price, "shipping_fee": shipping_fee, "price": price}
                     added_rows += 1
 
                 if row_number % 500 == 0:
@@ -518,16 +521,17 @@ def import_prices_to_cache_csv(
             product_code = normalize_price_cache_key(get_row_value(row, product_code_index))
             weight_value = get_row_value(row, weight_index)
             cost_price_value = get_row_value(row, cost_price_index)
+            cost_price = parse_number(cost_price_value)
             shipping_fee = calculate_shipping_fee(weight_value, shipping_fees)
             price = calculate_price(cost_price_value, shipping_fee, price_rules)
 
             if not product_code or price is None:
                 skipped_rows += 1
             elif product_code in price_cache:
-                price_cache[product_code] = price
+                price_cache[product_code] = {"cost_price": cost_price, "shipping_fee": shipping_fee, "price": price}
                 updated_rows += 1
             else:
-                price_cache[product_code] = price
+                price_cache[product_code] = {"cost_price": cost_price, "shipping_fee": shipping_fee, "price": price}
                 added_rows += 1
 
             if row_number % 500 == 0:

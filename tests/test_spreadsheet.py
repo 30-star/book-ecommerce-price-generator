@@ -47,7 +47,7 @@ def test_import_single_product_prices_to_cache(tmp_path):
     summary = import_prices_to_cache_xlsx(input_path, price_cache=cache)
 
     assert summary == [("Sheet1", 1, 0, 0)]
-    assert cache == {"ABC": 2.64}
+    assert cache == {"ABC": {"cost_price": 1, "shipping_fee": 1.3, "price": 2.64}}
 
 
 def test_import_combo_product_prices_to_cache(tmp_path):
@@ -68,7 +68,22 @@ def test_import_combo_product_prices_to_cache(tmp_path):
     )
 
     assert summary == [("Sheet1", 1, 0, 0)]
-    assert cache == {"COMBO1": 21.26}
+    assert cache == {"COMBO1": {"cost_price": 5, "shipping_fee": 13.5, "price": 21.26}}
+
+
+def test_import_duplicate_product_updates_cached_record(tmp_path):
+    input_path = tmp_path / "single.xlsx"
+    cache = {"ABC": {"cost_price": 99, "shipping_fee": 99, "price": 99}}
+    save_workbook(
+        input_path,
+        [PRODUCT_CODE_COLUMN_NAME, WEIGHT_COLUMN_NAME, COST_PRICE_COLUMN_NAME],
+        [["abc", 0.4, 2]],
+    )
+
+    summary = import_prices_to_cache_xlsx(input_path, price_cache=cache)
+
+    assert summary == [("Sheet1", 0, 1, 0)]
+    assert cache == {"ABC": {"cost_price": 2, "shipping_fee": 1.9, "price": 4.48}}
 
 
 def test_append_cached_prices_uses_spec_code_lookup(tmp_path):
@@ -76,7 +91,11 @@ def test_append_cached_prices_uses_spec_code_lookup(tmp_path):
     output_path = tmp_path / "new_out.xlsx"
     save_workbook(input_path, [SPEC_CODE_COLUMN_NAME], [["abc$$suffix"], ["missing"]])
 
-    summary = append_cached_prices_xlsx(input_path, output_path, price_cache={"ABC": 12.3})
+    summary = append_cached_prices_xlsx(
+        input_path,
+        output_path,
+        price_cache={"ABC": {"cost_price": 1, "shipping_fee": 1.3, "price": 12.3}},
+    )
     rows = read_rows(output_path)
 
     assert summary == [("Sheet1", 1, 1)]
