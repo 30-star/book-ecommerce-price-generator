@@ -40,25 +40,25 @@ def calculate_shipping_fee(value, shipping_fees=None):
 
     if weight is None or weight == 0:
         return "请检查"
-    if 0 < weight < 0.25:
+    if 0 < weight < 0.3:
         return fees[0]
-    if 0.25 <= weight < 0.4:
+    if 0.3 <= weight < 0.5:
         return fees[1]
-    if 0.4 <= weight < 0.9:
+    if 0.5 <= weight < 1:
         return fees[2]
-    if 0.9 <= weight < 1.4:
+    if 1 <= weight < 1.5:
         return fees[3]
-    if 1.4 <= weight < 1.9:
+    if 1.5 <= weight < 2:
         return fees[4]
-    if 1.9 <= weight < 2.4:
+    if 2 <= weight < 2.5:
         return fees[5]
-    if 2.4 <= weight < 2.9:
+    if 2.5 <= weight < 3:
         return fees[6]
-    if 2.9 <= weight < 3.9:
+    if 3 <= weight < 4:
         return fees[7]
-    if 3.9 <= weight < 4.9:
+    if 4 <= weight < 5:
         return fees[8]
-    if weight >= 4.9:
+    if weight >= 5:
         return fees[9]
 
     return "请检查"

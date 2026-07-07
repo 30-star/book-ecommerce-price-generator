@@ -68,7 +68,7 @@ def test_import_combo_product_prices_to_cache(tmp_path):
     )
 
     assert summary == [("Sheet1", 1, 0, 0)]
-    assert cache == {"COMBO1": {"cost_price": 5, "shipping_fee": 13.5, "price": 21.26}}
+    assert cache == {"COMBO1": {"cost_price": 5, "shipping_fee": 5.6, "price": 12.18}}
 
 
 def test_import_duplicate_product_updates_cached_record(tmp_path):
@@ -77,7 +77,7 @@ def test_import_duplicate_product_updates_cached_record(tmp_path):
     save_workbook(
         input_path,
         [PRODUCT_CODE_COLUMN_NAME, WEIGHT_COLUMN_NAME, COST_PRICE_COLUMN_NAME],
-        [["abc", 0.4, 2]],
+        [["abc", 0.5, 2]],
     )
 
     summary = import_prices_to_cache_xlsx(input_path, price_cache=cache)
