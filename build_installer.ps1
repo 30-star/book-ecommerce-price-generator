@@ -28,4 +28,8 @@ if (-not $iscc) {
 $isccPath = if ($iscc.Source) { $iscc.Source } else { $iscc.FullName }
 & $isccPath "installer.iss"
 
+if ($LASTEXITCODE -ne 0) {
+  throw "Inno Setup failed with exit code $LASTEXITCODE."
+}
+
 Write-Host "Installer generated in installer folder."

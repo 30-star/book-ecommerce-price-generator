@@ -1,72 +1,66 @@
 # 图书电商线上活动价格自动生成器
 
-Windows 桌面版表格处理工具。
+Windows 桌面版表格处理工具，免费开源，许可证为 MIT。
 
-## License
+## 主要功能
 
-MIT License. Free and open source.
+- 自动识别 `商品重量`，新增 `快递费` 和 `售价`。
+- 支持在界面填写快递费重量区间返回值。
+- 支持普通商品和组合商品使用两套售价规则。
+- 售价公式：`售价 = (成本价 + 快递费) / (1 - 毛利率)`。
+- 价格库默认保存在 `%LOCALAPPDATA%\图书电商线上活动价格自动生成器\price_cache.json`。
+- 可将单品表格或组合商品表格计算后的 `商品编码 -> 售价` 保存到价格库。
+- 可导入新表格，用 `规格编码` 匹配价格库商品编码，并在表格末尾新增 `售价`。
+- 匹配时忽略大小写，并自动截断 `规格编码` 中 `$$` 及其后面的内容。
+- 删除行规则由 `rules.json` 控制，配置格式保持兼容。
+- 支持 `.xlsx`、`.xlsm`、`.csv`。
 
-功能：
+## 开发运行
 
-- 自动识别“商品重量”列
-- 在商品重量列旁新增“快递费”列
-- 可在界面中填写每个商品重量区间返回的快递费数字
-- 可分别填写普通商品和严选组合商品的成本价分界值，以及高低两档毛利率
-- 价格库默认记录“商品编码”和对应售价，处理新表格时按商品编码匹配回填售价
-- 可单独导入表格到价格库，按当前快递费和售价公式计算售价，并保存“商品编码 -> 售价”
-- 可单独导入严选组合商品表格到价格库，按“组合商品编码”“组合重量”“组合成本价”计算并保存售价
-- 可单独导入新表格，按“规格编码”匹配价格库里的商品编码，并在表格末尾新增“售价”列
-- 删除行规则可通过 `rules.json` 配置，不需要重新打包程序
-- 如果同一行“商品名”和“成本价”都为空白，导出时删除该行
-- 支持 `.xlsx`、`.xlsm`、`.csv`
+```powershell
+py -3.14 main.py
+```
 
-生成程序：
+## 测试
+
+```powershell
+py -3.14 -m pytest
+py -3.14 -m py_compile .\main.py
+```
+
+## 生成程序
 
 ```powershell
 .\build_exe.ps1
 ```
 
-生成后程序在：
+输出：
 
 ```text
 dist\图书电商线上活动价格自动生成器.exe
 ```
 
-生成安装程序：
+## 生成 Windows 安装包
 
 ```powershell
 .\build_installer.ps1
 ```
 
-生成后安装包在：
+输出：
 
 ```text
 installer\图书电商线上活动价格自动生成器_安装程序.exe
 ```
 
-删除规则配置：
+## 项目结构
 
 ```text
-rules.json
+main.py                  启动入口
+price_generator\ui.py    Tkinter 界面
+price_generator\spreadsheet.py  表格读写与导入导出
+price_generator\pricing.py      快递费和售价计算
+price_generator\cache.py        价格库读写、导出、清空
+price_generator\rules.py        删除规则判断
+price_generator\headers.py      表头和别名匹配
+price_generator\paths.py        资源、规则、价格库路径
 ```
-
-程序会默认读取同目录下的 `rules.json`。也可以在主界面选择其它规则文件，或点击“生成”导出一份默认规则。
-
-售价保存配置：
-
-```text
-price_cache.json
-```
-
-程序会自动在当前 Windows 用户数据目录维护 `price_cache.json`，默认按“商品编码”保存和匹配售价；也可以在主界面修改“售价匹配列名”。
-
-支持的规则操作：
-
-- `blank`：为空
-- `not_blank`：不为空
-- `zero_or_blank`：为 0 或为空
-- `contains`：包含指定文字
-- `contains_ci`：包含指定文字，忽略大小写
-- `no_english_letter`：不包含英文字母
-- `four_digit_lt`：找到连续 4 位数字且小于指定值
-- `lt`、`lte`、`gt`、`gte`、`eq`：数字比较
