@@ -1,5 +1,5 @@
 #define MyAppName "图书电商线上活动价格自动生成器"
-#define MyAppVersion "1.6.3"
+#define MyAppVersion "1.6.4"
 #define MyAppPublisher "本地工具"
 #define MyAppExeName "图书电商线上活动价格自动生成器.exe"
 

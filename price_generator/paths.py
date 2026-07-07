@@ -1,7 +1,7 @@
 import os
 import sys
 
-from .constants import PRICE_CACHE_FILE_NAME
+from .constants import PRICE_CACHE_FILE_NAME, SALES_ANALYSIS_CACHE_FILE_NAME
 
 
 def app_base_dir():
@@ -25,3 +25,10 @@ def default_price_cache_path():
     data_dir = os.path.join(data_root, "图书电商线上活动价格自动生成器")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, PRICE_CACHE_FILE_NAME)
+
+
+def default_sales_analysis_cache_path():
+    data_root = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    data_dir = os.path.join(data_root, "图书电商线上活动价格自动生成器")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, SALES_ANALYSIS_CACHE_FILE_NAME)

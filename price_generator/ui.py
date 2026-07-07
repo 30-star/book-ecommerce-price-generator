@@ -8,11 +8,14 @@ from .constants import *
 from .paths import default_price_cache_path, default_rules_path, resource_path
 from .pricing import normalize_price_cache_key
 from .rules import load_delete_rules, save_default_rules
+from .sales_analysis_cache import load_sales_analysis_cache, save_sales_analysis_cache
 from .spreadsheet import (
     append_cached_prices_csv,
     append_cached_prices_xlsx,
     default_output_path,
     default_price_match_output_path,
+    import_sales_analysis_to_cache_csv,
+    import_sales_analysis_to_cache_xlsx,
     import_prices_to_cache_csv,
     import_prices_to_cache_xlsx,
     process_csv,
@@ -35,6 +38,7 @@ class App(tk.Tk):
         self.combo_cache_import_path = tk.StringVar()
         self.match_input_path = tk.StringVar()
         self.match_output_path = tk.StringVar()
+        self.sales_analysis_import_path = tk.StringVar()
         self.rules_path = tk.StringVar(value=default_rules_path())
         self.status = tk.StringVar(value="请选择表格导入价格库，或从价格库匹配售价。")
         self.progress = tk.IntVar(value=0)
@@ -155,6 +159,31 @@ class App(tk.Tk):
         self.clear_cache_button = ttk.Button(cache_action_frame, text="清空价格库", command=self.start_clear_price_cache)
         self.clear_cache_button.grid(row=1, column=0, sticky="ew")
 
+        sales_analysis_frame = ttk.LabelFrame(cache_row, text="销售利润分析表", padding=10)
+        sales_analysis_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        sales_analysis_frame.columnconfigure(1, weight=1)
+        ttk.Label(sales_analysis_frame, text="导入表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
+        ttk.Entry(sales_analysis_frame, textvariable=self.sales_analysis_import_path).grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(0, 8),
+            pady=3,
+        )
+        ttk.Button(sales_analysis_frame, text="选择", command=self.choose_sales_analysis_import).grid(row=0, column=2, sticky="ew", pady=3)
+        ttk.Label(
+            sales_analysis_frame,
+            text="读取“内部订单号”“订单重量”“销售金额”“销售成本”，并保存到销售主题分析价格库。",
+            foreground="#435064",
+            wraplength=320,
+        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 8))
+        self.sales_analysis_import_button = ttk.Button(
+            sales_analysis_frame,
+            text="导入销售主题分析价格库",
+            command=self.start_sales_analysis_import,
+        )
+        self.sales_analysis_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=14)
+
         self.progress_bar = ttk.Progressbar(frame, variable=self.progress, maximum=100, mode="determinate")
         self.progress_bar.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
 
@@ -244,6 +273,20 @@ class App(tk.Tk):
 
         self.match_input_path.set(path)
         self.match_output_path.set(default_price_match_output_path(path))
+
+    def choose_sales_analysis_import(self):
+        path = filedialog.askopenfilename(
+            title="选择要导入销售主题分析价格库的表格文件",
+            filetypes=[
+                ("表格文件", "*.xlsx *.xlsm *.csv"),
+                ("Excel 文件", "*.xlsx *.xlsm"),
+                ("CSV 文件", "*.csv"),
+                ("所有文件", "*.*"),
+            ],
+        )
+
+        if path:
+            self.sales_analysis_import_path.set(path)
 
     def choose_match_output(self):
         initial = self.match_output_path.get() or default_price_match_output_path(self.match_input_path.get() or "匹配售价.xlsx")
@@ -470,6 +513,36 @@ class App(tk.Tk):
         )
         thread.start()
 
+    def start_sales_analysis_import(self):
+        input_path = self.sales_analysis_import_path.get().strip()
+
+        if not input_path or not os.path.exists(input_path):
+            messagebox.showwarning("缺少文件", "请先选择要导入销售主题分析价格库的表格文件。")
+            return
+
+        try:
+            shipping_fees = self.get_shipping_fees()
+            sales_cache = load_sales_analysis_cache()
+        except ValueError as error:
+            messagebox.showwarning("规则错误", str(error))
+            return
+        except Exception as error:
+            messagebox.showwarning("读取失败", f"销售主题分析价格库读取失败：{error}")
+            return
+
+        self._set_buttons_state("disabled")
+        self.progress_bar.config(mode="indeterminate")
+        self.progress_bar.start(10)
+        self.progress.set(0)
+        self.status.set("正在导入销售主题分析价格库，请稍候...")
+
+        thread = threading.Thread(
+            target=self._import_sales_analysis_in_thread,
+            args=(input_path, sales_cache, shipping_fees),
+            daemon=True,
+        )
+        thread.start()
+
     def start_export_price_cache(self):
         path = filedialog.asksaveasfilename(
             title="选择价格库导出位置",
@@ -557,6 +630,26 @@ class App(tk.Tk):
         try:
             exported = export_price_cache_xlsx(output_path, price_cache)
             self.after(0, lambda: self._finish_export_cache_success(output_path, exported))
+        except Exception as error:
+            message = str(error)
+            self.after(0, lambda: self._finish_error(message))
+
+    def _import_sales_analysis_in_thread(self, input_path, sales_cache, shipping_fees):
+        try:
+            extension = os.path.splitext(input_path)[1].lower()
+
+            if extension == ".csv":
+                summary = import_sales_analysis_to_cache_csv(input_path, self._set_progress, sales_cache, shipping_fees)
+            elif extension in (".xlsx", ".xlsm"):
+                summary = import_sales_analysis_to_cache_xlsx(input_path, self._set_progress, sales_cache, shipping_fees)
+            else:
+                raise ValueError("暂不支持该文件格式，请使用 .xlsx、.xlsm 或 .csv。")
+
+            save_sales_analysis_cache(sales_cache)
+            added = sum(item[1] for item in summary)
+            updated = sum(item[2] for item in summary)
+            skipped = sum(item[3] for item in summary)
+            self.after(0, lambda: self._finish_sales_analysis_import_success(added, updated, skipped))
         except Exception as error:
             message = str(error)
             self.after(0, lambda: self._finish_error(message))
@@ -674,6 +767,7 @@ class App(tk.Tk):
         self.match_button.config(state=state)
         self.export_cache_button.config(state=state)
         self.clear_cache_button.config(state=state)
+        self.sales_analysis_import_button.config(state=state)
 
     def _finish_success(self, output_path, kept, deleted, matched, saved):
         self._set_buttons_state("normal")
@@ -706,6 +800,17 @@ class App(tk.Tk):
         messagebox.showinfo(
             "导入完成",
             f"价格库已更新。\n\n新增：{added} 条\n更新：{updated} 条\n跳过：{skipped} 行",
+        )
+
+    def _finish_sales_analysis_import_success(self, added, updated, skipped):
+        self._set_buttons_state("normal")
+        self.progress_bar.stop()
+        self.progress_bar.config(mode="determinate")
+        self.progress.set(100)
+        self.status.set(f"销售主题分析价格库导入完成：新增 {added} 条，更新 {updated} 条，跳过 {skipped} 行。")
+        messagebox.showinfo(
+            "导入完成",
+            f"销售主题分析价格库已更新。\n\n新增：{added} 条\n更新：{updated} 条\n跳过：{skipped} 行",
         )
 
     def _finish_export_cache_success(self, output_path, exported):

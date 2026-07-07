@@ -542,6 +542,162 @@ def import_prices_to_cache_csv(
     return [("CSV", added_rows, updated_rows, skipped_rows)]
 
 
+def import_sales_analysis_to_cache_xlsx(input_path, progress_callback=None, sales_cache=None, shipping_fees=None):
+    source = load_workbook(input_path, read_only=True, data_only=True)
+    sales_cache = sales_cache if sales_cache is not None else {}
+    summary = []
+
+    try:
+        total_rows = estimate_xlsx_total_rows(source)
+        processed_rows = 0
+
+        for sheet_index, source_sheet in enumerate(source.worksheets, start=1):
+            rows = source_sheet.iter_rows(values_only=True)
+            header = next(rows, None)
+
+            if header is None:
+                summary.append((source_sheet.title, 0, 0, 0))
+                continue
+
+            headers = list(header)
+            order_index = find_header_index(headers, INTERNAL_ORDER_NUMBER_COLUMN_NAME)
+            weight_index = find_header_index(headers, ORDER_WEIGHT_COLUMN_NAME)
+            amount_index = find_header_index(headers, SALES_AMOUNT_COLUMN_NAME)
+            cost_index = find_header_index(headers, SALES_COST_COLUMN_NAME)
+
+            if order_index == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{INTERNAL_ORDER_NUMBER_COLUMN_NAME}”列。")
+            if weight_index == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{ORDER_WEIGHT_COLUMN_NAME}”列。")
+            if amount_index == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{SALES_AMOUNT_COLUMN_NAME}”列。")
+            if cost_index == -1:
+                raise ValueError(f"工作表“{source_sheet.title}”没有找到“{SALES_COST_COLUMN_NAME}”列。")
+
+            added_rows = 0
+            updated_rows = 0
+            skipped_rows = 0
+
+            for row_number, row in enumerate(rows, start=2):
+                row_values = list(row)
+                processed_rows += 1
+                order_number = str(get_row_value(row_values, order_index) or "").strip()
+
+                if not order_number:
+                    skipped_rows += 1
+                else:
+                    order_weight = parse_number(get_row_value(row_values, weight_index))
+                    shipping_fee = calculate_shipping_fee(get_row_value(row_values, weight_index), shipping_fees)
+                    sales_amount = parse_number(get_row_value(row_values, amount_index))
+                    sales_cost = parse_number(get_row_value(row_values, cost_index))
+                    record = {
+                        "order_weight": order_weight,
+                        "shipping_fee": shipping_fee,
+                        "sales_amount": sales_amount,
+                        "sales_cost": sales_cost,
+                        "gross_profit": calculate_gross_profit(sales_amount, sales_cost, shipping_fee),
+                    }
+                    if order_number in sales_cache:
+                        updated_rows += 1
+                    else:
+                        added_rows += 1
+                    sales_cache[order_number] = record
+
+                if row_number % 500 == 0:
+                    report_progress(
+                        progress_callback,
+                        f"正在导入销售主题分析价格库：{source_sheet.title} 第 {row_number} 行",
+                        processed_rows,
+                        total_rows,
+                    )
+
+            summary.append((source_sheet.title, added_rows, updated_rows, skipped_rows))
+            report_progress(
+                progress_callback,
+                f"已导入 {sheet_index}/{len(source.worksheets)} 个工作表",
+                processed_rows,
+                total_rows,
+            )
+    finally:
+        source.close()
+
+    return summary
+
+
+def calculate_gross_profit(sales_amount, sales_cost, shipping_fee):
+    shipping_fee_number = parse_number(shipping_fee)
+    if sales_amount is None or sales_cost is None or shipping_fee_number is None:
+        return None
+    return round(sales_amount - sales_cost - shipping_fee_number, 2)
+
+
+def import_sales_analysis_to_cache_csv(input_path, progress_callback=None, sales_cache=None, shipping_fees=None):
+    sales_cache = sales_cache if sales_cache is not None else {}
+
+    with open(input_path, "r", newline="", encoding="utf-8-sig") as count_file:
+        total_rows = max(sum(1 for _ in count_file) - 1, 0)
+
+    with open(input_path, "r", newline="", encoding="utf-8-sig") as source_file:
+        sample = source_file.read(4096)
+        source_file.seek(0)
+        dialect = csv.Sniffer().sniff(sample) if sample.strip() else csv.excel
+        reader = csv.reader(source_file, dialect)
+
+        header = next(reader, None)
+        if header is None:
+            raise ValueError("CSV 文件为空。")
+
+        order_index = find_header_index(header, INTERNAL_ORDER_NUMBER_COLUMN_NAME)
+        weight_index = find_header_index(header, ORDER_WEIGHT_COLUMN_NAME)
+        amount_index = find_header_index(header, SALES_AMOUNT_COLUMN_NAME)
+        cost_index = find_header_index(header, SALES_COST_COLUMN_NAME)
+
+        if order_index == -1:
+            raise ValueError(f"没有找到“{INTERNAL_ORDER_NUMBER_COLUMN_NAME}”列。")
+        if weight_index == -1:
+            raise ValueError(f"没有找到“{ORDER_WEIGHT_COLUMN_NAME}”列。")
+        if amount_index == -1:
+            raise ValueError(f"没有找到“{SALES_AMOUNT_COLUMN_NAME}”列。")
+        if cost_index == -1:
+            raise ValueError(f"没有找到“{SALES_COST_COLUMN_NAME}”列。")
+
+        added_rows = 0
+        updated_rows = 0
+        skipped_rows = 0
+        processed_rows = 0
+
+        for row_number, row in enumerate(reader, start=2):
+            processed_rows += 1
+            order_number = str(get_row_value(row, order_index) or "").strip()
+
+            if not order_number:
+                skipped_rows += 1
+            else:
+                order_weight = parse_number(get_row_value(row, weight_index))
+                shipping_fee = calculate_shipping_fee(get_row_value(row, weight_index), shipping_fees)
+                sales_amount = parse_number(get_row_value(row, amount_index))
+                sales_cost = parse_number(get_row_value(row, cost_index))
+                record = {
+                    "order_weight": order_weight,
+                    "shipping_fee": shipping_fee,
+                    "sales_amount": sales_amount,
+                    "sales_cost": sales_cost,
+                    "gross_profit": calculate_gross_profit(sales_amount, sales_cost, shipping_fee),
+                }
+                if order_number in sales_cache:
+                    updated_rows += 1
+                else:
+                    added_rows += 1
+                sales_cache[order_number] = record
+
+            if row_number % 500 == 0:
+                report_progress(progress_callback, f"正在导入销售主题分析价格库 CSV 第 {row_number} 行", processed_rows, total_rows)
+
+    report_progress(progress_callback, "CSV 销售主题分析价格库导入完成。", total_rows, total_rows)
+
+    return [("CSV", added_rows, updated_rows, skipped_rows)]
+
+
 def default_output_path(input_path):
     folder = os.path.dirname(input_path)
     base, extension = os.path.splitext(os.path.basename(input_path))
