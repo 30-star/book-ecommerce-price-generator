@@ -1147,8 +1147,13 @@ class App(tk.Tk):
         )
         self.combo_cache_import_button.grid(row=2, column=0, columnspan=3, sticky="ew", ipady=6)
 
-        cache_frame = ttk.LabelFrame(frame, text="从价格库匹配售价", padding=10)
-        cache_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        cache_row = ttk.Frame(frame)
+        cache_row.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+        cache_row.columnconfigure(0, weight=1, uniform="cache_row")
+        cache_row.columnconfigure(1, weight=1, uniform="cache_row")
+
+        cache_frame = ttk.LabelFrame(cache_row, text="从价格库匹配售价", padding=10)
+        cache_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         cache_frame.columnconfigure(1, weight=1)
         ttk.Label(cache_frame, text="导入新表格").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=3)
         ttk.Entry(cache_frame, textvariable=self.match_input_path).grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=3)
