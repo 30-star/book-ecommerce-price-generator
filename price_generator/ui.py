@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from .cache import export_price_cache_xlsx, load_price_cache, save_price_cache
 from .constants import *
-from .paths import default_price_cache_path, resource_path
+from .paths import default_price_cache_path, default_rules_path, resource_path
 from .pricing import normalize_price_cache_key
 from .rules import load_delete_rules, save_default_rules
 from .spreadsheet import (

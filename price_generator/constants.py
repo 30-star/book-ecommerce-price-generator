@@ -1,4 +1,4 @@
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 
 WEIGHT_COLUMN_NAME = "商品重量"
